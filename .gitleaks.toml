@@ -1,0 +1,24 @@
+title = "Mawjood secret scan"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented placeholders and unreachable test fixtures."
+
+paths = [
+  # The environment template. Values are CHANGEME placeholders by construction.
+  '''\.env\.example$''',
+  # Lockfiles contain hashes, not secrets.
+  '''uv\.lock$''',
+]
+
+regexes = [
+  # Explicit placeholder markers used across .env.example and compose.
+  '''CHANGEME[A-Z_]*''',
+  '''\$\{[A-Z_]+\}''',
+  # The unreachable loopback DSN used by the test suite. Not a credential: the
+  # unit tests never open a socket, and the integration suite is given a real
+  # DSN through MAWJOOD_TEST_DATABASE_URL.
+  '''postgresql\+asyncpg://mawjood:mawjood@127\.0\.0\.1:\d+/\w+''',
+]

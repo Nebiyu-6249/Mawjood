@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.8.17"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  quality:
+    name: lint, types, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mawjood
+          POSTGRES_PASSWORD: mawjood
+          POSTGRES_DB: mawjood_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U mawjood -d mawjood_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Lint
+        run: |
+          uv run ruff check --output-format=github .
+          uv run ruff format --check .
+
+      - name: Typecheck
+        run: uv run mypy
+
+      - name: Tests
+        run: uv run pytest -q
+
+      - name: Tests against a live PostgreSQL
+        env:
+          MAWJOOD_TEST_DATABASE_URL: postgresql+asyncpg://mawjood:mawjood@127.0.0.1:5432/mawjood_test
+        run: uv run pytest -q -m integration
+
+      - name: Migrations apply to an empty database
+        env:
+          MAWJOOD_DATABASE_URL: postgresql+asyncpg://mawjood:mawjood@127.0.0.1:5432/mawjood_test
+        run: uv run alembic upgrade head
+
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks scans history, which needs more than the default shallow clone.
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    name: image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the application image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: mawjood:ci
+
+      - name: Container starts and answers liveness
+        run: |
+          docker run -d --name mawjood-ci -p 8000:8000 \
+            -e MAWJOOD_DATABASE_URL='postgresql+asyncpg://u:p@127.0.0.1:5432/db' \
+            mawjood:ci
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8000/healthz > /dev/null; then
+              echo "liveness OK"; exit 0
+            fi
+            sleep 1
+          done
+          echo "container never became live"; docker logs mawjood-ci; exit 1
