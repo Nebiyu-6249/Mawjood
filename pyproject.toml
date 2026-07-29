@@ -1,0 +1,122 @@
+[project]
+name = "mawjood"
+version = "0.1.0"
+description = "Mawjood — WhatsApp AI booking assistant for the UAE market"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "Proprietary" }
+
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "httpx>=0.28",
+    "tenacity>=9.0",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "structlog>=24.4",
+    "sentry-sdk[fastapi]>=2.19",
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "pytest-socket>=0.7",
+    "respx>=0.22",
+    "ruff>=0.8",
+    "mypy>=1.14",
+    "pre-commit>=4.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mawjood"]
+
+# ---------------------------------------------------------------------------
+# ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["mawjood", "tests", "tools"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "B",         # bugbear
+    "C4",        # comprehensions
+    "UP",        # pyupgrade
+    "ASYNC",     # flake8-async
+    "S",         # bandit
+    "T20",       # no print() in library code
+    "SIM",       # simplify
+    "RUF",
+]
+ignore = [
+    "E501",      # line length is handled by the formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests may assert, hardcode fixture "secrets", and open sockets deliberately.
+"tests/**" = ["S101", "S105", "S106", "S311"]
+# Operator tools are CLIs; printing is the point.
+"tools/**" = ["T20"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["mawjood"]
+
+# ---------------------------------------------------------------------------
+# mypy — strict on mawjood/core/, standard elsewhere
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+# Add "tools" here once the first operator script lands (chat_sim.py, Phase 2).
+# mypy treats an empty directory as a fatal error.
+files = ["mawjood", "tests"]
+plugins = ["pydantic.mypy"]
+
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+no_implicit_reexport = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# The invariant lives in core/. It gets the strictest setting we have.
+module = "mawjood.core.*"
+strict = true
+disallow_any_explicit = false
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = true
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+# No real network calls in tests, ever. Unix sockets stay open because the
+# asyncio event loop needs a self-pipe; see tests/test_no_network.py.
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--disable-socket",
+    "--allow-unix-socket",
+]
+markers = [
+    "integration: needs a live PostgreSQL; enables sockets. Skipped unless MAWJOOD_TEST_DATABASE_URL is set.",
+]
