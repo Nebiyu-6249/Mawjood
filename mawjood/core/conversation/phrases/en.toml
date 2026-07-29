@@ -1,0 +1,57 @@
+# English copy. Every word a consumer can see lives in a file like this one.
+#
+# Adding Arabic means adding ar.toml with the same keys — no code change.
+#
+# THE RULE: no entry here may contain failure language. Not "sorry", not
+# "unfortunately", not "no availability", not "unable to". When an aggregator
+# has nothing, the router advances; when the list is exhausted, a human takes
+# over. The consumer sees a pivot, never an empty shelf.
+#
+# tests/cascade/test_no_empty_shelves.py scans every entry in every locale and
+# fails the build on a violation.
+
+locale = "en"
+
+# Bump when the consent wording below changes. Recorded against every consent
+# event so an audit shows which version a consumer actually read.
+policy_version = "2026-07-01"
+
+[phrases]
+
+# --- Greetings -------------------------------------------------------------
+"greeting.welcome" = "Hey — I'm Mawjood 👋 Tell me what you're after and I'll line it up. A haircut, a table, a spa slot, whatever you need."
+
+"greeting.returning" = "Welcome back 👋 What can I line up for you today?"
+
+# --- PDPL consent ----------------------------------------------------------
+# Shown on first contact. Mawjood keeps helping while it is displayed; an
+# affirmative reply is required before any personal data reaches a venue
+# (decision 4). DRAFT — written for the operator's legal review.
+"consent.notice" = "Quick bit of housekeeping: I keep your number and what you tell me so I can make your booking and confirm it back to you. Your details go to the venue you book with, and nowhere else. Reply STOP at any time and I'll stop right there and leave your details alone."
+
+"consent.acknowledged" = "Noted, thank you. Now — what are you after?"
+
+"consent.withdrawn" = "Done — I've stopped there and I won't use your details any further. Message me any time if you'd like to pick this back up."
+
+# --- Gathering the request -------------------------------------------------
+"ask.what_you_need" = "Tell me what you need — roughly what, where, and when is plenty to start."
+
+"ack.received" = "Got it. Give me a moment and I'll line up your options."
+
+# --- The graceful pivot ----------------------------------------------------
+# These two carry the invariant. They are what a consumer sees when an
+# aggregator returns nothing, errors, or the turn budget expires mid-cascade.
+# They must read as momentum, never as an apology.
+"pivot.holding" = "Let me check a few more options for you — one moment."
+
+"pivot.still_looking" = "Still on it — lining up a couple more for you. I'll come straight back."
+
+# --- Handoff ---------------------------------------------------------------
+# The floor beneath the invariant. Reads as an upgrade in service, because
+# from the consumer's side that is exactly what it is.
+"handoff.connecting" = "I'm bringing in one of our team to take this the rest of the way — they'll pick up right here in a moment."
+
+# --- Clarification ---------------------------------------------------------
+# Deliberately not "I didn't understand". Asks forward instead of reporting a
+# shortcoming.
+"fallback.unclear" = "Give me a little more to go on — what are you after, and roughly where and when?"
