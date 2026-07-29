@@ -79,9 +79,7 @@ known-first-party = ["mawjood"]
 # ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.12"
-# Add "tools" here once the first operator script lands (chat_sim.py, Phase 2).
-# mypy treats an empty directory as a fatal error.
-files = ["mawjood", "tests"]
+files = ["mawjood", "tests", "tools"]
 plugins = ["pydantic.mypy"]
 
 warn_unused_configs = true

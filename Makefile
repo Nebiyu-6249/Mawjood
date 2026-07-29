@@ -1,12 +1,11 @@
 # Mawjood developer commands.
 #
 # `make check` is exactly what CI runs. If it passes locally, CI passes.
-# Commands for later phases (simulate, seed, qr) arrive with the tools they
-# wrap — see CLAUDE.md section 12 for the full intended set.
+# `make simulate` is the fastest way to see Mawjood work: no credentials needed.
 
 .DEFAULT_GOAL := help
-.PHONY: help install run test test-integration lint format typecheck check \
-        migrate revision secrets-scan hooks up down logs clean
+.PHONY: help install run simulate seed test test-integration lint format \
+        typecheck check migrate revision secrets-scan hooks up down logs clean
 
 PY := uv run
 
@@ -19,6 +18,12 @@ install: ## Create the venv and install dependencies
 
 run: ## Run the API locally with reload
 	$(PY) uvicorn mawjood.main:create_app --factory --reload --port 8000
+
+simulate: ## Chat with Mawjood in the terminal (no WhatsApp credentials needed)
+	$(PY) python tools/chat_sim.py --audit
+
+seed: ## Create the default tenant and starter routing config
+	$(PY) python tools/seed_dev.py --routing
 
 test: ## Run the test suite (no network, ever)
 	$(PY) pytest -q
