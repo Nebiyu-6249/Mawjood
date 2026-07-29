@@ -19,7 +19,7 @@ from functools import lru_cache
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field, PostgresDsn, SecretStr, field_validator
+from pydantic import Field, PostgresDsn, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Region codes that would put consumer data in the United States. Matched against
@@ -74,6 +74,30 @@ class Settings(BaseSettings):
     # cascade into the background. See CLAUDE.md section 5.2.
     turn_deadline_ms: int = Field(default=2500, gt=0)
 
+    # --- Tenancy ------------------------------------------------------------
+    # v1 runs one operator. The slug is configuration rather than a constant so
+    # multi-tenant routing is a resolver change, not a schema change.
+    default_tenant_slug: str = "mawjood"
+    default_tenant_name: str = "Mawjood"
+
+    # --- Messaging provider (BSP) ------------------------------------------
+    bsp_provider: Literal["360dialog", "wati", "console"] = "360dialog"
+    # HMAC key for inbound webhook signatures.
+    bsp_webhook_secret: SecretStr | None = None
+    # Shared token for the provider's subscription handshake.
+    bsp_verify_token: SecretStr | None = None
+    # Refusing unsigned webhooks is the default. Turning this off is a local
+    # development affordance and is rejected outright in production below.
+    bsp_require_signature: bool = True
+    bsp_api_base: str | None = None
+    bsp_api_key: SecretStr | None = None
+
+    # --- Startup behaviour --------------------------------------------------
+    # docker-compose sets this so one command gives a working stack. Deployments
+    # run migrations as a deliberate step, so it stays off by default.
+    run_migrations_on_start: bool = False
+    seed_dev_tenant_on_start: bool = False
+
     # --- Observability ------------------------------------------------------
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["json", "console"] = "json"
@@ -84,14 +108,21 @@ class Settings(BaseSettings):
     log_retention_days: int = Field(default=90, ge=1)
     data_retention_days: int = Field(default=365, ge=1)
 
-    @field_validator("sentry_dsn", mode="before")
+    @field_validator(
+        "sentry_dsn",
+        "bsp_webhook_secret",
+        "bsp_verify_token",
+        "bsp_api_key",
+        "bsp_api_base",
+        mode="before",
+    )
     @classmethod
     def _empty_string_is_unset(cls, value: object) -> object:
         """Treat an empty env var as absent.
 
-        ``.env.example`` ships ``MAWJOOD_SENTRY_DSN=`` and compose passes it
-        through as "". Without this, the field becomes SecretStr("") rather than
-        None and the "is it configured?" check silently succeeds.
+        ``.env.example`` ships these keys blank and compose passes them through as
+        "". Without this they become SecretStr("") rather than None, and every
+        "is it configured?" check silently succeeds on an empty credential.
         """
         if isinstance(value, str) and not value.strip():
             return None
@@ -115,6 +146,28 @@ class Settings(BaseSettings):
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError(f"unknown timezone {value!r}") from exc
         return value
+
+    @model_validator(mode="after")
+    def _production_demands_signed_webhooks(self) -> Settings:
+        """An unsigned webhook endpoint in production accepts spoofed messages.
+
+        Disabling verification is a local convenience for poking the endpoint
+        with curl. Allowing it to reach production by way of a stray environment
+        variable is how a booking system ends up taking instructions from anyone
+        who can find the URL.
+        """
+        if self.environment is Environment.PROD:
+            if not self.bsp_require_signature:
+                raise ValueError(
+                    "bsp_require_signature cannot be disabled in production: "
+                    "unsigned webhooks accept spoofed consumer messages"
+                )
+            if self.bsp_provider != "console" and self.bsp_webhook_secret is None:
+                raise ValueError(
+                    "bsp_webhook_secret is required in production so inbound "
+                    "webhooks can be verified"
+                )
+        return self
 
     @property
     def tzinfo(self) -> ZoneInfo:
