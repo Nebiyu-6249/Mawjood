@@ -27,14 +27,19 @@ data. This file names things; it **never contains a value**.
 | `MAWJOOD_SENTRY_DSN` | Error reporting | 0 | ⬜ optional |
 | `MAWJOOD_OPENAI_API_KEY` | NLU and slot filling | 2 | ⬜ **not provisioned** |
 | Zenoti API credentials | Salon/spa bookings, per merchant | 2 | ⬜ **sandbox not provisioned** |
-| `MAWJOOD_BSP_API_KEY` | WhatsApp send/receive | 3 | ⬜ **not provisioned** |
-| `MAWJOOD_BSP_WEBHOOK_SECRET` | Inbound webhook signature check | 3 | ⬜ **not provisioned** |
+| `MAWJOOD_BSP_WEBHOOK_SECRET` | Inbound webhook HMAC verification. **Required in production** — a Settings validator refuses to start without it. | 1 | ⬜ **not provisioned** |
+| `MAWJOOD_BSP_VERIFY_TOKEN` | Provider subscription handshake | 1 | ⬜ **not provisioned** |
+| `MAWJOOD_BSP_API_KEY` | Outbound send. Until set, replies persist as `queued` and nothing is delivered. | 1 | ⬜ **not provisioned** |
 | Deliveroo API credentials | Food delivery, merchant-side | 3 | ⬜ **not provisioned** |
 
-Merchant-level aggregator credentials are **not** environment variables. They live
-in the `merchant_credentials` table (Phase 1) as references into the secret store,
-resolved just-in-time and handed to adapters in `CallContext`. Adapters never read
-the secret store themselves. See `CLAUDE.md` section 4.
+Merchant-level aggregator credentials are **not** environment variables. They will
+live in a `merchant_credentials` table as references into the secret store,
+resolved just-in-time and handed to adapters in `CallContext`; adapters never read
+the secret store themselves. See `CLAUDE.md` section 4 and decision 1.
+
+That table is **deferred to Phase 2**, when the adapter layer that consumes it
+arrives. Phase 1 ships `routing_config` with `platform_slug` as free text and no
+foreign key, which is all the routing order needs.
 
 ## Declared data processors
 

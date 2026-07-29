@@ -47,11 +47,11 @@ uv run uvicorn mawjood.main:app --reload
 | Secret scan and the other hooks | `make secrets-scan` |
 | Migrate | `make migrate` |
 | Run locally | `make run` |
+| Chat with Mawjood, no credentials needed | `make simulate` |
+| Seed the tenant and routing config | `make seed` |
 | Start/stop the local stack | `make up` / `make down` |
 
-Install the git hooks once with `make hooks`. The full intended command set,
-including `simulate` (Phase 2) and `seed` (Phase 3), is in
-[`CLAUDE.md`](CLAUDE.md) section 12 — those targets arrive with the tools they wrap.
+Install the git hooks once with `make hooks`.
 
 ## Documentation
 
@@ -63,11 +63,16 @@ including `simulate` (Phase 2) and `seed` (Phase 3), is in
 | `docs/DEPLOY.md` | Deployment and region selection. |
 | `docs/ACCEPTANCE.md` | Launch acceptance checklist. |
 | `docs/KEYS.md` | Every credential and declared data processor. |
-| `docs/INTEGRATION_NOTES.md` | Per-aggregator API facts, recorded from live docs. |
+| `docs/INTEGRATION_NOTES.md` | Per-provider API facts, recorded from live docs, with confidence levels. |
+| [`docs/SCHEMA.md`](docs/SCHEMA.md) | The eleven tables, with a diagram and the reasoning behind the non-obvious choices. |
 
 ## Status
 
-**Phase 0 (scaffold) complete.** The skeleton boots, `/readyz` tells the truth about
-the database, logs are JSON with credentials redacted, and CI enforces lint, types,
-tests and a secret scan. No aggregator, conversation or routing code exists yet —
-that starts in Phase 1. See [`PLAN.md`](PLAN.md).
+**Phase 1 (foundations) complete.** Eleven tables with tenant scoping enforced in
+the repository layer, an append-only audit trail, PDPL consent capture, the
+phrasebank with its blocklist scan, and a BSP-agnostic WhatsApp webhook with HMAC
+signature verification.
+
+`make simulate` talks to Mawjood in the terminal with no credentials of any kind,
+driving exactly the same pipeline as the webhook. No aggregator adapters, routing
+engine or NLU yet — that is Phase 2. See [`PLAN.md`](PLAN.md).
