@@ -25,10 +25,19 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Phase 1 replaces this with the declarative Base metadata for autogenerate.
-target_metadata = None
+# Imported here, after fileConfig, because importing the models pulls in the
+# application logging configuration and alembic must own logging setup first.
+from mawjood.db import models  # noqa: E402, F401  (registers every model)
+from mawjood.db.base import Base  # noqa: E402
 
-config.set_main_option("sqlalchemy.url", str(get_settings().database_url))
+target_metadata = Base.metadata
+
+# Honour a URL supplied programmatically (the test fixtures and the compose
+# bootstrap both set one), and otherwise take it from settings. Overriding
+# unconditionally would silently point a caller's migration at a different
+# database than the one they asked for.
+if not config.get_main_option("sqlalchemy.url", None):
+    config.set_main_option("sqlalchemy.url", str(get_settings().database_url))
 
 
 def run_migrations_offline() -> None:
