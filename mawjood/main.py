@@ -19,13 +19,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from mawjood.api.health import router as health_router
+from mawjood.api.webhooks.whatsapp import router as whatsapp_router
 from mawjood.config import Settings, get_settings
+from mawjood.core.conversation.phrasebank import get_phrasebank
+from mawjood.db.bootstrap import prepare_database
 from mawjood.db.engine import create_engine, create_session_factory
 from mawjood.observability.logging import (
     RequestContextMiddleware,
     configure_logging,
     get_logger,
 )
+from mawjood.services.bsp.registry import build_bsp
 
 log = get_logger(__name__)
 
@@ -52,8 +56,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings
 
     engine = create_engine(settings)
+    session_factory = create_session_factory(engine)
     app.state.engine = engine
-    app.state.session_factory = create_session_factory(engine)
+    app.state.session_factory = session_factory
+    app.state.bsp = build_bsp(settings)
+
+    # Loaded eagerly so a malformed or incomplete locale file fails at startup
+    # rather than the first time a consumer needs a reply.
+    phrasebank = get_phrasebank()
+    app.state.phrasebank = phrasebank
 
     log.info(
         "app.startup",
@@ -62,7 +73,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         data_residency=settings.data_residency,
         timezone=settings.timezone,
         database=settings.database_url_safe,
+        bsp_provider=settings.bsp_provider,
+        locales=phrasebank.locales,
     )
+
+    await prepare_database(settings, session_factory)
+
     try:
         yield
     finally:
@@ -95,6 +111,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.add_middleware(RequestContextMiddleware)
     app.include_router(health_router)
+    app.include_router(whatsapp_router)
     return app
 
 
