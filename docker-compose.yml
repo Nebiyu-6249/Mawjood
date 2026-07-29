@@ -37,6 +37,10 @@ services:
     environment:
       # Overrides .env so the app reaches the container, not localhost.
       MAWJOOD_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # Local convenience only. Deployments run migrations as a deliberate,
+      # reviewable step, which is why both default to false in config.py.
+      MAWJOOD_RUN_MIGRATIONS_ON_START: "true"
+      MAWJOOD_SEED_DEV_TENANT_ON_START: "true"
     ports:
       - "127.0.0.1:8000:8000"
     restart: unless-stopped

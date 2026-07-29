@@ -62,7 +62,12 @@ jobs:
       - name: Tests against a live PostgreSQL
         env:
           MAWJOOD_TEST_DATABASE_URL: postgresql+asyncpg://mawjood:mawjood@127.0.0.1:5432/mawjood_test
-        run: uv run pytest -q -m integration
+        run: |
+          # -m integration would pass vacuously if every test were skipped.
+          # Fail the job unless the integration tier actually ran.
+          uv run pytest -q -m integration --tb=short | tee /tmp/integration.log
+          grep -qE '[0-9]+ passed' /tmp/integration.log || {
+            echo "integration tests did not run"; exit 1; }
 
       - name: Migrations apply to an empty database
         env:
