@@ -29,7 +29,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from mawjood.core.conversation.types import InboundMessage, OutboundMessage
-from mawjood.services.bsp.base import SignatureScheme
+from mawjood.services.bsp.base import DeliveryReceipt, SignatureScheme
 
 
 class WatiNotConfigured(NotImplementedError):
@@ -51,6 +51,12 @@ class WatiBSP:
             "scheme have not been confirmed against live documentation, and "
             "guessing them would silently mangle real consumer messages. "
             "See the module docstring for what to confirm."
+        )
+
+    def parse_receipts(self, raw_body: bytes) -> Sequence[DeliveryReceipt]:
+        raise WatiNotConfigured(
+            "The Wati adapter is a documented stub. Its delivery-status payload "
+            "has not been confirmed against live documentation."
         )
 
     async def send(self, outbound: OutboundMessage) -> str | None:

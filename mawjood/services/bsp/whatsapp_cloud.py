@@ -26,14 +26,15 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
 from mawjood.core.conversation.types import InboundMessage, OutboundMessage
-from mawjood.core.enums import Channel
+from mawjood.core.enums import Channel, MessageStatus
 from mawjood.observability.logging import get_logger
-from mawjood.services.bsp.base import SignatureScheme
+from mawjood.services.bsp.base import DeliveryReceipt, SignatureScheme
 
 log = get_logger(__name__)
 
@@ -41,6 +42,16 @@ log = get_logger(__name__)
 # location, sticker...) is recognised but not yet handled, and is dropped here
 # rather than half-processed downstream.
 _TEXT_TYPES = frozenset({"text"})
+
+# The provider's delivery vocabulary, mapped onto ours. Anything absent here is
+# skipped rather than guessed at: putting a message into a state the rest of the
+# system reasons about wrongly is worse than not recording the status at all.
+_STATUS_MAP: dict[str, MessageStatus] = {
+    "sent": MessageStatus.SENT,
+    "delivered": MessageStatus.DELIVERED,
+    "read": MessageStatus.READ,
+    "failed": MessageStatus.FAILED,
+}
 
 
 class WhatsAppCloudBSP:
@@ -99,6 +110,58 @@ class WhatsAppCloudBSP:
             provider_message_id=str(message_id),
             display_name=names.get(str(wa_id)),
             raw=message,
+        )
+
+    def parse_receipts(self, raw_body: bytes) -> Sequence[DeliveryReceipt]:
+        """Pull delivery statuses out of the same envelope as messages.
+
+        Statuses arrive on the same endpoint under ``value.statuses``, and one
+        body can carry both. A status naming a state we do not model is skipped
+        rather than guessed at — inventing a mapping would put a message into a
+        state the rest of the system reasons about wrongly.
+        """
+        try:
+            payload: dict[str, Any] = json.loads(raw_body)
+        except json.JSONDecodeError:
+            return ()
+
+        receipts: list[DeliveryReceipt] = []
+        for entry in _as_list(payload.get("entry")):
+            for change in _as_list(entry.get("changes")):
+                for status in _as_list((change.get("value") or {}).get("statuses")):
+                    parsed = self._parse_status(status)
+                    if parsed is not None:
+                        receipts.append(parsed)
+        return tuple(receipts)
+
+    def _parse_status(self, status: dict[str, Any]) -> DeliveryReceipt | None:
+        message_id = status.get("id")
+        state = _STATUS_MAP.get(str(status.get("status", "")).lower())
+        if not message_id or state is None:
+            log.info("bsp.unmapped_status", provider=self.slug, status=status.get("status"))
+            return None
+
+        occurred_at: datetime | None = None
+        raw_timestamp = status.get("timestamp")
+        if raw_timestamp is not None:
+            try:
+                occurred_at = datetime.fromtimestamp(int(raw_timestamp), tz=UTC)
+            except (TypeError, ValueError):
+                occurred_at = None
+
+        errors = _as_list(status.get("errors"))
+        reason = None
+        if errors:
+            first = errors[0]
+            reason = str(first.get("title") or first.get("message") or first.get("code") or "")[
+                :500
+            ]
+
+        return DeliveryReceipt(
+            provider_message_id=str(message_id),
+            status=state,
+            occurred_at=occurred_at,
+            failed_reason=reason or None,
         )
 
     async def send(self, outbound: OutboundMessage) -> str | None:

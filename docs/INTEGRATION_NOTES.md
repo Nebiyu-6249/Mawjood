@@ -121,8 +121,42 @@ exercises the identical contract.
 **To unblock:** someone with browser access records the answers above here, then
 replaces the stub. Nothing outside that one file changes.
 
-### Deliveroo — Phase 3
-Not started. Merchant-side Order API; full production access needs a partnership.
+### Deliveroo — Phase 3: BLOCKED, documentation unreachable
+
+Same failure as Zenoti, re-verified during Phase 3.
+
+| Attempt | Result |
+|---|---|
+| `https://api-docs.deliveroo.com/docs/introduction` | HTTP 403 |
+| `https://developers.deliveroo.com/docs` | HTTP 403 |
+| `https://api-docs.deliveroo.com/` (direct curl, browser UA) | connection refused (000) |
+| `https://api-docs.deliveroo.com/v2.0/reference` (direct curl) | connection refused (000) |
+| `https://developers.deliveroo.com/` (direct curl) | connection refused (000) |
+
+**What is known without the docs, and is not enough:** the Order API is
+merchant-side, and full production access requires a partnership agreement
+rather than self-serve signup.
+
+**What remains unknown, and is required:** base URL, auth model, every endpoint
+path, request and response shapes, rate limits, the error taxonomy, and whether
+order creation honours an idempotency key. As with Zenoti, that last point is
+what the double-booking defence in CLAUDE.md section 5.1 rests on.
+
+**Status:** `mawjood/core/aggregators/partners.py` ships `DeliverooAdapter` as a
+documented stub that registers cleanly, declares no capabilities, and returns
+`UNSUPPORTED`, so the router advances past it and the consumer never notices.
+
+**Consequence for the phase:** Phase 3's headline deliverable was "prove the
+plugin claim with a real second platform". The claim is instead proven
+structurally — `tests/adapters/test_plugin_claim.py` registers a brand-new
+platform in one file plus one config row, touching zero core files, and asserts
+by AST walk that no aggregator slug appears anywhere in `core/routing/`,
+`core/conversation/`, `api/` or `db/`. That is the property the deliverable
+existed to establish; what is still missing is a live platform to demonstrate it
+against.
+
+**To unblock:** someone with browser access records the answers above here.
+Nothing outside `partners.py` changes.
 
 ### OpenTable, Foodics, Booksy, Talabat, Careem — Phase 3
 Partner-gated. Ship as documented stubs returning `UNSUPPORTED` that register

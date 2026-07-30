@@ -23,10 +23,12 @@ import hashlib
 import hmac
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum, auto
 from typing import Protocol, runtime_checkable
 
 from mawjood.core.conversation.types import InboundMessage, OutboundMessage
+from mawjood.core.enums import MessageStatus
 
 
 class SignatureResult(StrEnum):
@@ -115,6 +117,25 @@ def sign_payload(*, scheme: SignatureScheme, secret: str, raw_body: bytes) -> st
     return f"{scheme.prefix}{digest}"
 
 
+@dataclass(frozen=True, slots=True)
+class DeliveryReceipt:
+    """A provider telling us what became of a message we sent.
+
+    Transport-neutral: providers describe delivery differently, and the pipeline
+    should not learn any of their vocabularies. The adapter maps its own status
+    strings onto :class:`~mawjood.core.enums.MessageStatus` and hands over this.
+
+    ``failed_reason`` is for the audit trail and ops, never for a consumer. A
+    consumer is not told a message failed — that is the invariant, and it applies
+    to delivery as much as to availability.
+    """
+
+    provider_message_id: str
+    status: MessageStatus
+    occurred_at: datetime | None = None
+    failed_reason: str | None = None
+
+
 @runtime_checkable
 class BSPAdapter(Protocol):
     """One messaging provider."""
@@ -127,7 +148,17 @@ class BSPAdapter(Protocol):
 
         Returns an empty sequence for payloads that are valid but carry nothing
         actionable — delivery receipts, status updates, read markers. Those are
-        the majority of webhook traffic and must not be errors.
+        the majority of webhook traffic and are handled by
+        :meth:`parse_receipts`, not here.
+        """
+        ...
+
+    def parse_receipts(self, raw_body: bytes) -> Sequence[DeliveryReceipt]:
+        """Pull delivery statuses out of the same payload.
+
+        Separate from ``parse_inbound`` because they are different events with
+        different consequences, and one webhook body can carry both. Returning
+        an empty sequence is the common case and is not an error.
         """
         ...
 
@@ -143,6 +174,7 @@ class BSPAdapter(Protocol):
 
 __all__ = [
     "BSPAdapter",
+    "DeliveryReceipt",
     "SignatureResult",
     "SignatureScheme",
     "sign_payload",
