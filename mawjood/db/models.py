@@ -135,6 +135,21 @@ class Conversation(Base, TenantMixin, TimestampMixin):
     )
     locale: Mapped[str] = mapped_column(String(8), nullable=False, server_default="en")
     bot_muted: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+
+    # Where the state machine is, and what it has gathered. Persisted so a
+    # conversation survives a restart and a consumer can pick it up tomorrow.
+    #
+    # Free text rather than a CHECK: the state vocabulary will grow, and a
+    # constraint here would turn adding a state into a migration on a hot table.
+    state: Mapped[str] = mapped_column(String(32), nullable=False, server_default="greeting")
+    collected_slots: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+    # The concrete slot awaiting an explicit yes. Nothing is booked while this is
+    # empty — see core/conversation/states.py.
+    pending_offer: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -423,6 +438,55 @@ class HandoffQueue(Base, TenantMixin, TimestampMixin):
     )
 
 
+class MerchantCredential(Base, TenantMixin, TimestampMixin):
+    """A merchant on a platform, and where its credentials live.
+
+    Decision 1: aggregator APIs are merchant-side. Each salon has its own centre
+    ids and key, so the cascade iterates platform → merchants within it rather
+    than platform → platform.
+
+    ``secret_ref`` is a *reference*, never a credential. Values live in the secret
+    store and are resolved just-in-time by the router, which hands them to the
+    adapter in CallContext. Nothing secret is ever in this table, so a database
+    dump is not a credential leak.
+    """
+
+    __tablename__ = "merchant_credentials"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    platform_slug: Mapped[str] = mapped_column(String(64), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    area: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Platform-side identifiers: centre_id, org_id, location_id, and so on.
+    external_ids: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+    secret_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    # Order within a platform. The cascade tries lower numbers first.
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    # Set when a credential is rejected upstream, so ops can see it without
+    # reading logs. AUTH_ERROR is our problem, never the consumer's.
+    credential_degraded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "platform_slug",
+            "display_name",
+            name="uq_merchant_credentials_tenant_platform_name",
+        ),
+        Index(
+            "ix_merchant_credentials_tenant_platform_priority",
+            "tenant_id",
+            "platform_slug",
+            "priority",
+        ),
+    )
+
+
 class AuditLog(Base, TenantMixin):
     """Append-only record of everything the system decided and showed.
 
@@ -535,6 +599,7 @@ __all__ = [
     "Feedback",
     "HandoffQueue",
     "Lead",
+    "MerchantCredential",
     "Message",
     "RoutingConfig",
     "Tenant",

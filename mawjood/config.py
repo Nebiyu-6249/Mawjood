@@ -80,6 +80,24 @@ class Settings(BaseSettings):
     default_tenant_slug: str = "mawjood"
     default_tenant_name: str = "Mawjood"
 
+    # --- Conversation engine (LLM) -----------------------------------------
+    # Provider-agnostic by decision 6. "deterministic" is a rule-based understudy
+    # that needs no credentials — it is what lets chat_sim and the whole test
+    # suite run for free, and it is the default until a key is provisioned.
+    llm_provider: Literal["openai", "deterministic"] = "deterministic"
+    llm_model: str = "gpt-4o-mini"
+    openai_api_key: SecretStr | None = None
+    llm_timeout_ms: int = Field(default=2000, gt=0)
+
+    # Registers the fake adapters so a local demo can complete a booking while
+    # no live adapter exists. Refused outright in production by
+    # aggregators/registry.py — a fake in production confirms bookings that do
+    # not exist.
+    enable_fake_adapters: bool = True
+
+    # --- Secrets --------------------------------------------------------------
+    secrets_backend: Literal["env", "static"] = "env"
+
     # --- Messaging provider (BSP) ------------------------------------------
     bsp_provider: Literal["360dialog", "wati", "console"] = "360dialog"
     # HMAC key for inbound webhook signatures.
@@ -114,6 +132,7 @@ class Settings(BaseSettings):
         "bsp_verify_token",
         "bsp_api_key",
         "bsp_api_base",
+        "openai_api_key",
         mode="before",
     )
     @classmethod
