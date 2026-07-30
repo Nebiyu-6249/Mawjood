@@ -30,7 +30,7 @@ paperwork instead of engineering.
 
 ---
 
-## Phase 0 — Scaffold
+## Phase 0 — Scaffold ✅ complete
 
 Get a green, boring skeleton that boots and enforces its own rules.
 
@@ -61,7 +61,7 @@ Get a green, boring skeleton that boots and enforces its own rules.
 
 ---
 
-## Phase 1 — Foundations
+## Phase 1 — Foundations ✅ complete
 
 The load-bearing phase: schema, the adapter contract, the phrasebank, and the machinery
 that makes the invariant testable. Everything after this is built on top, so the contract
@@ -111,7 +111,19 @@ freeze happens here.
 
 ---
 
-## Phase 2 — Conversation + routing + Zenoti
+## Phase 2 — Conversation + routing + Zenoti ⚠️ complete except Zenoti
+
+> **Zenoti is blocked and not implemented.** `docs.zenoti.com` returns HTTP 403 on
+> every path and direct curl is blocked, so per section 10 the adapter is a
+> documented stub returning `UNSUPPORTED` rather than guessed endpoints. Everything
+> else in this phase shipped; the architecture is proven end to end against
+> `core/aggregators/fake/`, which exercises the identical contract. See
+> `docs/INTEGRATION_NOTES.md` for exactly what must be recorded to unblock it.
+>
+> Consequence for Phase 3: **there is still no live aggregator.** Either Zenoti
+> gets unblocked by someone with browser access, or Deliveroo becomes the first
+> real integration.
+
 
 The end-to-end spine. This is where the invariant stops being a doc and starts being
 runtime behaviour.
@@ -164,7 +176,7 @@ invariant hold with every upstream failing.
 
 ---
 
-## Phase 3 — Second aggregator + notifications + console
+## Phase 3 — Second aggregator + notifications + console ⬜ not started
 
 Prove the plugin claim with a real second platform, then build the operational surface.
 
@@ -206,7 +218,7 @@ showing a completed booking, its full routing audit trail, and a live handoff.
 
 ---
 
-## Phase 4 — Hardening + launch readiness
+## Phase 4 — Hardening + launch readiness ⬜ not started
 
 Compliance made real, performance proven, and live credentials wired when they land.
 
@@ -260,6 +272,8 @@ Flagged rather than assumed, per the working agreement:
 
 ## Carried open question
 
-`LOW_CONFIDENCE` semantics are **proposed, not settled** (`CLAUDE.md` §4): hold as a
+`LOW_CONFIDENCE` semantics are **proposed, not settled, and now implemented as
+proposed** (`CLAUDE.md` §4): hold as a
 fallback candidate, keep looking, surface only with hedged copy and explicit confirmation,
-never auto-book. Confirm before the Phase 2 cascade tests are written, since they encode it.
+never auto-book. The Phase 2 cascade tests and `core/routing/policy.py` encode
+this reading, so changing it is now a real edit rather than a note.

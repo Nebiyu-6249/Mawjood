@@ -1,12 +1,13 @@
 # Schema
 
-Eleven tables. Every one except `tenants` carries `tenant_id` — the root of the
+Twelve tables. Every one except `tenants` carries `tenant_id` — the root of the
 scoping hierarchy is the only thing not scoped by it.
 
 ```mermaid
 erDiagram
     TENANTS ||--o{ LEADS : "scopes"
     TENANTS ||--o{ ROUTING_CONFIG : "scopes"
+    TENANTS ||--o{ MERCHANT_CREDENTIALS : "scopes"
     LEADS ||--o{ CONVERSATIONS : "has"
     LEADS ||--o{ CONSENTS : "grants"
     LEADS ||--o{ ATTRIBUTION : "came from"
@@ -44,6 +45,9 @@ erDiagram
         enum channel "whatsapp|console"
         enum status "active|awaiting_handoff|handed_off|closed"
         bool bot_muted "human owns the thread"
+        string state "state machine position"
+        jsonb collected_slots "service, area, date, time"
+        jsonb pending_offer "the slot awaiting an explicit yes"
         ts last_activity_at
     }
 
@@ -83,6 +87,19 @@ erDiagram
         ts slot_start
         numeric price_amount
         enum payment_status "no payment flow in v1"
+    }
+
+    MERCHANT_CREDENTIALS {
+        uuid id PK
+        uuid tenant_id FK
+        string platform_slug
+        string display_name "UK with tenant+platform"
+        string area
+        jsonb external_ids "centre_id, org_id, ..."
+        string secret_ref "a reference, never a credential"
+        bool is_active
+        int priority "order within a platform"
+        ts credential_degraded_at "set on AUTH_ERROR"
     }
 
     ROUTING_CONFIG {
@@ -168,8 +185,19 @@ scan.
 **`consents` is an event stream, not a flag.** Current state is derived. What a
 consumer was shown, and when, survives intact.
 
-## Deferred to Phase 2
+## Added in Phase 2
 
-`platforms`, `merchants` and `merchant_credentials` (decision 1 — many merchants
-per platform). Nothing consumes them until the adapter layer exists, and adding
-them is a clean additive migration.
+`merchant_credentials` (decision 1 — many merchants per platform), plus `state`,
+`collected_slots` and `pending_offer` on `conversations`.
+
+**`merchant_credentials` holds no credentials.** `secret_ref` names an entry in
+the secret store; the router resolves it just-in-time and hands the values to the
+adapter in `CallContext`. A database dump is therefore not a credential leak, and
+adapters never reach for the store themselves.
+
+Separate `platforms` and `merchants` tables were folded into this one. The adapter
+registry is already the authority on which platform slugs exist, so a `platforms`
+table would have been a second, drift-prone copy of that list.
+
+**`conversations.state` is free text, not a CHECK.** The state vocabulary will
+grow, and a constraint would turn adding a state into a migration on a hot table.
