@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set nav = 'bookings' %}
+{% block title %}Bookings — Mawjood ops{% endblock %}
+{% block content %}
+  <h2>Bookings</h2>
+  <div class="tabs">
+    <a href="/console/bookings?grain=day" class="{{ 'on' if grain == 'day' }}">day</a>
+    <a href="/console/bookings?grain=week" class="{{ 'on' if grain == 'week' }}">week</a>
+    <a href="/console/bookings?grain=month" class="{{ 'on' if grain == 'month' }}">month</a>
+  </div>
+  {% if rows %}
+    {% set peak = rows | map(attribute=1) | max %}
+    <table>
+      <tr><th>{{ grain }}</th><th class="num">confirmed</th><th class="num">cancelled</th><th style="width:40%"></th></tr>
+      {% for period, confirmed, cancelled in rows %}
+        <tr>
+          <td><code>{{ period.strftime("%Y-%m-%d") }}</code></td>
+          <td class="num">{{ confirmed }}</td>
+          <td class="num">{{ cancelled }}</td>
+          <td><div class="bar"><i style="width: {{ (confirmed / peak * 100) if peak else 0 }}%"></i></div></td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p class="quiet">Bookings appear here as they are made.</p>
+  {% endif %}
+{% endblock %}

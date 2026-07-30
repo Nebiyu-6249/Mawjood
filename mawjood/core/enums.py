@@ -122,6 +122,47 @@ class HandoffStatus(StrEnum):
     ABANDONED = "abandoned"
 
 
+class NotificationKind(StrEnum):
+    """What a scheduled message is for.
+
+    Two reminders rather than one: 24h out is when a consumer can still move
+    their day around it, 2h out is when they need to leave. They answer
+    different questions, so they are different rows with different offsets.
+    """
+
+    REMINDER_24H = "reminder_24h"
+    REMINDER_2H = "reminder_2h"
+    FOLLOW_UP = "follow_up"
+    SATISFACTION = "satisfaction"
+
+    @property
+    def is_reminder(self) -> bool:
+        return self in (NotificationKind.REMINDER_24H, NotificationKind.REMINDER_2H)
+
+
+class NotificationStatus(StrEnum):
+    """Where a scheduled message stands.
+
+    ``DEFERRED`` is the one that matters. It means "due, permitted to exist, but
+    not sendable right now" — the honest state for a message stuck behind
+    template approval. It is distinct from ``FAILED`` (we tried and the provider
+    refused) and from ``SKIPPED`` (it will never be sent, stop looking at it).
+    """
+
+    PENDING = "pending"
+    SENT = "sent"
+    # Blocked by policy, not by a fault. Retried on every scheduler pass, because
+    # the thing that unblocks it is a template approval landing.
+    DEFERRED = "deferred"
+    # Terminal: the booking was cancelled, or the moment passed unrecoverably.
+    SKIPPED = "skipped"
+    FAILED = "failed"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in (NotificationStatus.SENT, NotificationStatus.SKIPPED)
+
+
 class AttributionMedium(StrEnum):
     WA_LINK = "wa_link"
     QR = "qr"
@@ -199,6 +240,8 @@ __all__ = [
     "HandoffReason",
     "HandoffStatus",
     "MessageStatus",
+    "NotificationKind",
+    "NotificationStatus",
     "Outcome",
     "PaymentStatus",
 ]

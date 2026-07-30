@@ -51,6 +51,8 @@ from mawjood.core.enums import (
     HandoffReason,
     HandoffStatus,
     MessageStatus,
+    NotificationKind,
+    NotificationStatus,
     PaymentStatus,
 )
 from mawjood.db.base import Base, TenantMixin, TimestampMixin, uuid_pk
@@ -311,6 +313,78 @@ class Booking(Base, TenantMixin, TimestampMixin):
             "tenant_id", "idempotency_key", name="uq_bookings_tenant_id_idempotency_key"
         ),
         Index("ix_bookings_tenant_id_status_slot_start", "tenant_id", "status", "slot_start"),
+    )
+
+
+class ScheduledNotification(Base, TenantMixin, TimestampMixin):
+    """A message due to go out later.
+
+    **Rows, not timers.** A scheduled message that lives in an in-process timer
+    dies with the process, and nothing afterwards knows it was owed. Every
+    reminder is a row written the moment a booking is confirmed, so a restart, a
+    redeploy, or a three-day outage loses nothing — the next scheduler pass picks
+    up exactly what is still due.
+
+    ``(booking_id, kind)`` is unique. That is the idempotency guarantee, enforced
+    by the database rather than by a query the caller must remember to run: a
+    consumer cannot be reminded twice about the same booking because a second row
+    cannot exist.
+
+    ``status`` distinguishes *deferred* from *failed*. A message stuck behind
+    WhatsApp template approval is not an error, and calling it one would bury it
+    among real errors on exactly the dashboard meant to surface it.
+    """
+
+    __tablename__ = "scheduled_notifications"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    booking_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("bookings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False
+    )
+    lead_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind: Mapped[NotificationKind] = mapped_column(
+        _enum(NotificationKind, "notification_kind"), nullable=False
+    )
+    status: Mapped[NotificationStatus] = mapped_column(
+        _enum(NotificationStatus, "notification_status"),
+        nullable=False,
+        server_default=NotificationStatus.PENDING.value,
+    )
+    # When it wants to go out. Computed once, at scheduling time, from the
+    # booking and the configured offsets.
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The message actually produced, so the transcript and this table agree.
+    message_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), ForeignKey("messages.id", ondelete="SET NULL"), nullable=True
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Why it is not sent, in words an operator can act on. This is the column the
+    # console reads to say "42 messages waiting on template approval".
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Which WhatsApp template was used, if any. Null means it went as a session
+    # message inside the 24-hour window.
+    template_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    __table_args__ = (
+        # The idempotency guarantee, in the schema. A consumer cannot be
+        # double-reminded because a second row cannot exist.
+        UniqueConstraint("booking_id", "kind", name="uq_scheduled_notifications_booking_kind"),
+        Index(
+            "ix_scheduled_notifications_tenant_status_due",
+            "tenant_id",
+            "status",
+            "due_at",
+        ),
     )
 
 
@@ -602,5 +676,6 @@ __all__ = [
     "MerchantCredential",
     "Message",
     "RoutingConfig",
+    "ScheduledNotification",
     "Tenant",
 ]

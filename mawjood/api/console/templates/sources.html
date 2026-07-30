@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% set nav = 'sources' %}
+{% block title %}Sources — Mawjood ops{% endblock %}
+{% block content %}
+  <h2>Where consumers came from</h2>
+  <p class="lede">
+    First touch only — which poster or link brought someone in, not whichever
+    they tapped most recently. Bookings alongside leads, because a code that
+    brings a hundred people who never book is a different problem from one that
+    brings ten who all do.
+  </p>
+  {% if rows %}
+    <table>
+      <tr><th>code</th><th>medium</th><th class="num">consumers</th><th class="num">booked</th><th class="num">rate</th></tr>
+      {% for code, medium, leads, booked in rows %}
+        <tr>
+          <td><code>{{ code }}</code></td>
+          <td><span class="pill">{{ medium }}</span></td>
+          <td class="num">{{ leads }}</td>
+          <td class="num">{{ booked }}</td>
+          <td class="num">{{ "%.0f%%"|format(booked / leads * 100) if leads else "—" }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p class="quiet">No tagged arrivals yet. Generate a code with <code>tools/make_qr.py</code>.</p>
+  {% endif %}
+{% endblock %}

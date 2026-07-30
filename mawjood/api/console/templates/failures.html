@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% set nav = 'failures' %}
+{% block title %}Failed attempts — Mawjood ops{% endblock %}
+{% block content %}
+  <h2>Failed attempts</h2>
+  <p class="lede">
+    Every aggregator call that did not produce a booking, newest first, with the
+    reason the engine moved on. None of this reached a consumer — that is the
+    invariant working, and this page is where the cost of it is visible.
+  </p>
+  {% if rows %}
+    <div class="scroll">
+    <table>
+      <tr><th style="width:9rem">when</th><th>platform</th><th>merchant</th><th>outcome</th><th class="num">ms</th><th>why it advanced</th><th></th></tr>
+      {% for row in rows %}
+        <tr>
+          <td><code>{{ row.occurred_at.strftime("%d %b %H:%M:%S") }}</code></td>
+          <td><code>{{ row.platform_slug or "—" }}</code></td>
+          <td>{{ row.merchant_ref or "—" }}</td>
+          <td><span class="pill warn">{{ row.outcome }}</span></td>
+          <td class="num">{{ row.latency_ms if row.latency_ms is not none else "" }}</td>
+          <td>{{ row.advance_reason or "—" }}{% if row.raw_error %}<br><code style="color:var(--muted)">{{ row.raw_error }}</code>{% endif %}</td>
+          <td>{% if row.conversation_id %}<a href="/console/conversations/{{ row.conversation_id }}/trace">trace</a>{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </table>
+    </div>
+  {% else %}
+    <p class="quiet">Every attempt so far has succeeded.</p>
+  {% endif %}
+{% endblock %}

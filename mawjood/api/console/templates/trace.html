@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% set nav = 'conversations' %}
+{% block title %}Routing trace — Mawjood ops{% endblock %}
+{% block content %}
+  {#
+    The routing trace. Engine steps and consumer-visible messages on ONE
+    timeline, because the interleaving is the explanation: "three platforms
+    refused and the consumer saw a single holding message" only reads as a
+    story when both halves are in sequence.
+
+    Consumer messages are indented and tinted; engine steps sit flush left with
+    their outcome and latency. Scanning down the tinted column tells you what
+    the person experienced; scanning the left column tells you why.
+  #}
+  <h2>Routing trace</h2>
+  <p class="lede">
+    Every aggregator tried, what came back, how long it took, why the engine moved
+    on — and exactly what {{ lead.wa_id }} saw while it happened.
+    <a href="/console/conversations/{{ conversation.id }}">Back to the conversation</a>.
+  </p>
+
+  <div class="cards" style="margin-bottom:1.2rem">
+    <div class="card"><div class="n">{{ attempt_count }}</div><div class="l">aggregator attempts</div></div>
+    <div class="card"><div class="n">{{ platforms_tried | length }}</div><div class="l">platforms tried</div></div>
+    <div class="card"><div class="n">{{ messages_seen }}</div><div class="l">messages the consumer saw</div></div>
+    <div class="card"><div class="n">{{ steps | length }}</div><div class="l">recorded steps</div></div>
+  </div>
+
+  {% if platforms_tried %}
+    <p class="lede">
+      In order:
+      {% for slug in platforms_tried %}<span class="pill">{{ slug }}</span>{% if not loop.last %} → {% endif %}{% endfor %}
+    </p>
+  {% endif %}
+
+  <div class="scroll">
+  <table>
+    <tr>
+      <th style="width:3rem">#</th>
+      <th style="width:5.5rem">time</th>
+      <th>step</th>
+      <th style="width:7rem">platform</th>
+      <th style="width:7rem">outcome</th>
+      <th style="width:4.5rem" class="num">ms</th>
+      <th>why / what was said</th>
+    </tr>
+    {% for step in steps %}
+      <tr{% if step.consumer_visible %} style="background:var(--consumer)"{% endif %}>
+        <td><code>{{ step.seq }}</code></td>
+        <td><code>{{ step.occurred_at.strftime("%H:%M:%S") }}</code></td>
+        <td>
+          {% if step.consumer_visible %}
+            <strong>consumer saw</strong>
+          {% else %}
+            <code>{{ step.event_type }}</code>
+          {% endif %}
+          {% if step.attempt_number %}<span class="pill">try {{ step.attempt_number }}</span>{% endif %}
+        </td>
+        <td>{{ step.platform_slug or "" }}</td>
+        <td>
+          {% if step.outcome == "ok" %}
+            <span class="pill good">{{ step.outcome }}</span>
+          {% elif step.outcome %}
+            <span class="pill warn">{{ step.outcome }}</span>
+          {% endif %}
+        </td>
+        <td class="num">{{ step.latency_ms if step.latency_ms is not none else "" }}</td>
+        <td>
+          {% if step.consumer_visible and step.consumer_text %}
+            “{{ step.consumer_text }}”
+            {% if step.phrasebank_key %}<br><code style="color:var(--muted)">{{ step.phrasebank_key }}</code>{% endif %}
+          {% else %}
+            {{ step.advance_reason or "" }}
+            {% if step.merchant_ref %}<br><code style="color:var(--muted)">{{ step.merchant_ref }}</code>{% endif %}
+            {% if step.details.get("reason") %}<br>{{ step.details["reason"] }}{% endif %}
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  </div>
+
+  {% if not steps %}
+    <p class="quiet">Nothing recorded for this conversation yet.</p>
+  {% endif %}
+{% endblock %}

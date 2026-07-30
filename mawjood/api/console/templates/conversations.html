@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% set nav = 'conversations' %}
+{% block title %}Conversations — Mawjood ops{% endblock %}
+{% block content %}
+  <h2>Live conversations</h2>
+  <p class="lede">Most recent activity first.</p>
+  {% if rows %}
+    <table>
+      <tr><th>last activity</th><th>consumer</th><th>channel</th><th>state</th><th>assistant</th><th>msgs</th><th></th></tr>
+      {% for conversation, lead, count in rows %}
+        <tr>
+          <td><code>{{ conversation.last_activity_at.strftime("%d %b %H:%M") }}</code></td>
+          <td><a href="/console/conversations/{{ conversation.id }}">{{ lead.wa_id }}</a>{% if lead.display_name %} <span style="color:var(--muted)">{{ lead.display_name }}</span>{% endif %}</td>
+          <td>{{ conversation.channel }}</td>
+          <td><span class="pill">{{ conversation.state }}</span></td>
+          <td>{% if conversation.bot_muted %}<span class="pill warn">muted — a person owns this</span>{% else %}<span class="pill good">active</span>{% endif %}</td>
+          <td class="num">{{ count }}</td>
+          <td><a href="/console/conversations/{{ conversation.id }}/trace">trace</a></td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p class="quiet">Nothing here yet — conversations appear as soon as someone messages.</p>
+  {% endif %}
+{% endblock %}

@@ -83,6 +83,7 @@ def build_default_registry(*, include_fakes: bool = False) -> AdapterRegistry:
     production: a fake that reaches production would confirm bookings that do not
     exist, which is the worst failure this system could have.
     """
+    from mawjood.core.aggregators.deliveroo import DeliverooAdapter
     from mawjood.core.aggregators.fake import (
         AuthFailFake,
         EmptyFake,
@@ -96,6 +97,7 @@ def build_default_registry(*, include_fakes: bool = False) -> AdapterRegistry:
 
     registry = AdapterRegistry()
     registry.register(ZenotiAdapter())
+    registry.register(DeliverooAdapter())
     for partner in PARTNER_ADAPTERS:
         registry.register(partner())
 

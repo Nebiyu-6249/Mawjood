@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 
@@ -35,6 +36,22 @@ from mawjood.services.bsp.registry import build_bsp
 log = get_logger(__name__)
 
 
+def _scrub_event(event: Any, hint: Any) -> Any:
+    """Strip anything consumer-identifying before an event leaves the process.
+
+    ``send_default_pii=False`` covers Sentry's own automatic capture. It does not
+    cover a request body we attached ourselves, or a webhook payload sitting in a
+    local variable of a frame in the stack trace. Consumer data must not leave the
+    declared processors (CLAUDE.md section 11), and Sentry is not one of them for
+    message content — so request bodies and local variables go.
+    """
+    event.pop("request", None)
+    for entry in event.get("exception", {}).get("values", []):
+        for frame in entry.get("stacktrace", {}).get("frames", []):
+            frame.pop("vars", None)
+    return event
+
+
 def _init_sentry(settings: Settings) -> None:
     if settings.sentry_dsn is None:
         return
@@ -43,11 +60,17 @@ def _init_sentry(settings: Settings) -> None:
     sentry_sdk.init(
         dsn=settings.sentry_dsn.get_secret_value(),
         environment=str(settings.environment),
+        release=f"mawjood@{settings.service_version}",
         traces_sample_rate=settings.sentry_traces_sample_rate,
         # Consumer data is never used to train models and does not leave the
         # declared providers. Do not ship request bodies or PII to Sentry.
         send_default_pii=False,
+        before_send=_scrub_event,
+        # Region is a tag so a multi-region deployment can alert per region
+        # without a second project.
+        server_name=settings.region,
     )
+    sentry_sdk.set_tag("data_residency", settings.data_residency)
 
 
 @asynccontextmanager

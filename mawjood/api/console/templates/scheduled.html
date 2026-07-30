@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% set nav = 'scheduled' %}
+{% block title %}Scheduled messages — Mawjood ops{% endblock %}
+{% block content %}
+  <h2>Scheduled messages</h2>
+  {% set held = rows | selectattr("0.status", "equalto", "deferred") | list %}
+  {% if held %}
+    <p class="notice">
+      <strong>{{ held | length }}</strong>
+      {{ "message is" if held | length == 1 else "messages are" }}
+      held behind WhatsApp template approval. Outside the {{ window_hours }}-hour
+      session window only an approved template may be sent, and none is approved
+      yet. Nothing marked <code>deferred</code> was sent, and none of it is
+      recorded as sent — each is retried on every pass, so approval alone
+      releases the backlog.
+    </p>
+  {% endif %}
+
+  {% if rows %}
+    <div class="scroll">
+    <table>
+      <tr><th style="width:9rem">due</th><th>kind</th><th>consumer</th><th>venue</th><th>status</th><th class="num">tries</th><th>why</th></tr>
+      {% for row, booking, lead in rows %}
+        <tr>
+          <td><code>{{ row.due_at.strftime("%d %b %H:%M") }}</code></td>
+          <td>{{ row.kind }}</td>
+          <td>{{ lead.wa_id }}</td>
+          <td>{{ booking.venue_name or "—" }}</td>
+          <td>
+            {% if row.status == "sent" %}<span class="pill good">sent</span>
+            {% elif row.status == "deferred" %}<span class="pill warn">deferred</span>
+            {% elif row.status == "failed" %}<span class="pill bad">failed</span>
+            {% else %}<span class="pill">{{ row.status }}</span>{% endif %}
+          </td>
+          <td class="num">{{ row.attempts }}</td>
+          <td>{{ row.reason or "" }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+    </div>
+  {% else %}
+    <p class="quiet">Nothing scheduled — reminders are written when a booking is confirmed.</p>
+  {% endif %}
+
+  <h2>Templates</h2>
+  <p class="lede">
+    Names are configuration (<code>MAWJOOD_TEMPLATE_NAME_*</code>), and approval is
+    declared by <code>MAWJOOD_APPROVED_TEMPLATES</code>. Adding a name to that list
+    opens the out-of-window path with no code change.
+  </p>
+  <table>
+    <tr><th>name</th><th>locale</th><th>status</th><th>mirrors</th><th>variables</th></tr>
+    {% for template in templates %}
+      <tr>
+        <td><code>{{ template.name }}</code></td>
+        <td>{{ template.locale }}</td>
+        <td><span class="pill{{ ' good' if template.usable else ' warn' }}">{{ template.status }}</span></td>
+        <td><code>{{ template.phrasebank_key }}</code></td>
+        <td>{% for v in template.variables %}<code>${{ v }}</code> {% endfor %}</td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endblock %}

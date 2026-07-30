@@ -50,6 +50,8 @@ class Settings(BaseSettings):
 
     # --- Identity -----------------------------------------------------------
     service_name: str = "mawjood"
+    # Tags Sentry events so an alert can name the build it came from.
+    service_version: str = "0.1.0"
     environment: Environment = Environment.LOCAL
     debug: bool = False
 
@@ -96,18 +98,35 @@ class Settings(BaseSettings):
     enable_fake_adapters: bool = True
 
     # --- Scheduled messages ---------------------------------------------------
-    # Offsets relative to the booking, in hours. Product decisions an operator
-    # may want to move without a deploy.
-    notify_reminder_hours_before: float = Field(default=3.0, ge=0)
-    notify_follow_up_hours_after: float = Field(default=2.0, ge=0)
-    notify_satisfaction_hours_after: float = Field(default=24.0, ge=0)
+    # Offsets relative to the booking, in hours. Two reminders, because 24h out
+    # and 2h out answer different questions: one lets a consumer move their day
+    # around the booking, the other tells them to leave.
+    notify_reminder_24h_before: float = Field(default=24.0, ge=0)
+    notify_reminder_2h_before: float = Field(default=2.0, ge=0)
+    notify_follow_up_after: float = Field(default=2.0, ge=0)
+    notify_satisfaction_after: float = Field(default=24.0, ge=0)
     # How long a notification stays sendable after its moment passes. A
     # scheduler down for an hour should still send; one down for a day must not.
     notify_grace_hours: float = Field(default=2.0, ge=0)
     # WhatsApp's customer-service window. Outside it only an approved template
-    # may be sent, and Mawjood has none approved — see core/notifications/.
-    # Configurable because it is a provider policy, not a law of nature.
+    # may be sent. Configurable because it is a provider policy, not a law of
+    # nature — see mawjood/core/notifications/.
     whatsapp_session_window_hours: float = Field(default=24.0, gt=0)
+
+    # --- WhatsApp templates ---------------------------------------------------
+    # Names are configuration, never constants. A template's registered name is
+    # chosen by whoever submits it, in a portal, on a day nobody will remember —
+    # and if a resubmission has to take a new name, that must not be a deploy.
+    template_name_reminder_24h: str = "booking_reminder_24h"
+    template_name_reminder_2h: str = "booking_reminder_2h"
+    template_name_follow_up: str = "booking_follow_up"
+    template_name_satisfaction: str = "booking_satisfaction"
+    # The names Meta has actually approved. A name here flips its template to
+    # approved and opens the out-of-window send path with no code change.
+    # Empty today: template approval is an operational dependency and nothing has
+    # been submitted. Until then, scheduled messages degrade to session messages
+    # inside the 24-hour window and defer outside it.
+    approved_templates: tuple[str, ...] = ()
 
     # --- Ops console ----------------------------------------------------------
     # HTTP Basic. The console refuses to serve at all when no password is set —

@@ -113,8 +113,13 @@ policy_version = "2026-07-01"
 # Written short on purpose. An unprompted message is an interruption; it earns
 # its place by being useful in one line.
 
+# The day-before nudge, while the consumer can still move things around it.
+# $venue $day $time
+"notify.reminder_24h" = "Reminder — $venue $day at $time. See you there."
+
+# The one that means "leave soon". Shorter on purpose.
 # $venue $time
-"notify.reminder" = "Reminder — $venue at $time today. See you there."
+"notify.reminder_2h" = "$venue at $time today — see you shortly."
 
 # $venue
 "notify.follow_up" = "How did it go at $venue? Anything you'd like me to sort, just say."

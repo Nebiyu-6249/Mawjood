@@ -176,6 +176,20 @@ class TurnEngine:
         category = Category(pending_offer.get("category", Category.OTHER))
         chosen = next((c for c in candidates if c.slug == slot.merchant.platform_slug), None)
         if chosen is None:
+            # The offer named a platform that is no longer a candidate — routing
+            # config changed, or a merchant was deactivated, between the offer and
+            # the consumer's yes. Refusing and handing to a human is correct:
+            # booking on a platform ops has since removed is worse than a delay.
+            #
+            # Logged because the sibling branch above logs, and a silent branch
+            # leaves an operator with a system_error on the dashboard and nothing
+            # to look at.
+            log.error(
+                "booking.offer_platform_no_longer_configured",
+                platform=slot.merchant.platform_slug,
+                candidates=[c.slug for c in candidates],
+                category=str(category),
+            )
             return ActionResult(
                 phrases=(PhraseSpec(PhraseKey.HANDOFF_CONNECTING),),
                 state=ConversationState.HANDOFF,

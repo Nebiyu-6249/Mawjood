@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% set nav = 'aggregators' %}
+{% block title %}Aggregators — Mawjood ops{% endblock %}
+{% block content %}
+  <h2>Per-aggregator performance</h2>
+  <p class="lede">
+    From the audit trail, last 30 days. Median and p95 rather than a mean —
+    aggregator latency is long-tailed, and one 2.5-second timeout drags a mean
+    somewhere useless. The median is what a typical consumer waits; p95 is what
+    a bad day looks like.
+  </p>
+  {% if stats %}
+    <div class="scroll">
+    <table>
+      <tr><th>platform</th><th class="num">attempts</th><th class="num">success</th><th style="width:8rem"></th><th class="num">median ms</th><th class="num">p95 ms</th><th>outcomes</th></tr>
+      {% for stat in stats %}
+        <tr>
+          <td><code>{{ stat.platform_slug }}</code></td>
+          <td class="num">{{ stat.attempts }}</td>
+          <td class="num">{{ "%.0f%%"|format(stat.success_rate * 100) }}</td>
+          <td><div class="bar"><i style="width: {{ stat.success_rate * 100 }}%"></i></div></td>
+          <td class="num">{{ stat.median_latency_ms if stat.median_latency_ms is not none else "—" }}</td>
+          <td class="num">{{ stat.p95_latency_ms if stat.p95_latency_ms is not none else "—" }}</td>
+          <td>
+            {% for outcome, count in stat.outcomes.items() %}
+              <span class="pill{{ ' good' if outcome == 'ok' else ' warn' }}">{{ outcome }} {{ count }}</span>
+            {% endfor %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+    </div>
+  {% else %}
+    <p class="quiet">No routing attempts recorded yet.</p>
+  {% endif %}
+{% endblock %}

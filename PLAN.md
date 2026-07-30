@@ -176,37 +176,27 @@ invariant hold with every upstream failing.
 
 ---
 
-## Phase 3 — Second aggregator + notifications + console ⚠️ complete except the second aggregator
+## Phase 3 — Second aggregator + notifications + console ✅ complete
 
-Prove the plugin claim with a real second platform, then build the operational surface.
+Prove the plugin claim, then build the operational surface.
 
-> **Status.** Everything in this phase is done except the two items that depend on
-> documentation this environment cannot reach.
+> **Two things landed differently from the original plan, both deliberately.**
 >
-> **Deliveroo is blocked**, the same way Zenoti is: `api-docs.deliveroo.com` and
-> `developers.deliveroo.com` both return HTTP 403 to automated fetches and refuse
-> direct connections. Re-verified during this phase; recorded in
-> `docs/INTEGRATION_NOTES.md`. Per CLAUDE.md §10 the adapter was not written from
-> memory — it ships as a documented stub returning `UNSUPPORTED`.
+> **Deliveroo is implemented to the contract but returns `UNSUPPORTED`, for two
+> separate reasons.** Its documentation is unreachable (403 on both hosts,
+> re-verified 2026-07-30), *and* its Order API is merchant-side — it receives
+> orders Deliveroo already took through its own apps, it does not place them. An
+> outside assistant cannot originate an order through it, **and a partnership
+> does not change that.** The adapter records support per method so the
+> distinction survives; `docs/INTEGRATION_NOTES.md` carries the table. Someone
+> weighing a Deliveroo partnership can now see, before signing, that it will not
+> unlock consumer food ordering.
 >
-> **Wati is blocked** for the same reason, so "both BSP implementations pass one
-> shared conformance suite" is met by 360dialog/Meta and the console transport,
-> with Wati held to the tier of the suite that asserts a stub *refuses* rather
-> than silently returning nothing.
->
-> The plugin claim is therefore proven **structurally rather than against a live
-> platform**: `tests/adapters/test_plugin_claim.py` adds a new platform in one
-> file and one config row, touching zero core files, and asserts by AST walk that
-> no aggregator slug appears in `core/routing/`, `core/conversation/`, `api/` or
-> `db/`.
->
-> **Also found and fixed in this phase:** the WhatsApp webhook called
-> `handle_inbound` without `settings`, so on the live path the adapter registry
-> came up empty, the LLM provider reverted to the understudy, and the turn budget
-> and timezone reverted to defaults — while chat_sim passed settings and worked.
-> A booking that succeeded in the terminal would have found no aggregators on
-> WhatsApp. The parity suite now asserts both transports pass settings, and that
-> assertion fails against the old code.
+> **The console is strictly read-only** — no mutation routes exist at all, proven
+> by an AST test over the whole package plus an OpenAPI check. That revises
+> CLAUDE.md decision 7, which had the handoff reply in the console: the reply and
+> release paths are now `tools/handoff.py`. The capability survives; the console
+> stops stretching its own description.
 
 **Deliverables**
 - **Deliveroo adapter** — docs fetched first, `INTEGRATION_NOTES.md` updated. Merchant-side
