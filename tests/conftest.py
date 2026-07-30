@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from contextlib import contextmanager
 
 import pytest
@@ -33,9 +33,14 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.testclient import TestClient
 
 from mawjood.config import Settings
+from mawjood.core.enums import Category
+from mawjood.db.base import Base
 from mawjood.db.engine import create_engine, create_session_factory
-from mawjood.db.models import Tenant
+from mawjood.db.models import MerchantCredential, RoutingConfig, Tenant
 from mawjood.main import create_app
+
+# ``await routed(Category.SALON, "fake_empty", "fake_auth")``
+RoutingSeeder = Callable[..., Awaitable[None]]
 
 # Not a credential: an unreachable placeholder DSN. Unit tests never connect —
 # sockets are blocked — and the integration suite supplies a real one via
@@ -55,7 +60,9 @@ needs_database = pytest.mark.skipif(
     reason="needs a live PostgreSQL via MAWJOOD_TEST_DATABASE_URL",
 )
 
-# Every table, in an order safe to truncate.
+# Every table, in an order safe to truncate. Asserted complete against the
+# metadata below — a table added to the schema but forgotten here would leak rows
+# between tests, and the failure would look like a flaky test rather than a gap.
 _ALL_TABLES = (
     "audit_log",
     "handoff_queue",
@@ -66,8 +73,15 @@ _ALL_TABLES = (
     "bookings",
     "conversations",
     "leads",
+    "merchant_credentials",
     "routing_config",
     "tenants",
+)
+
+_MISSING_FROM_TRUNCATE = set(Base.metadata.tables) - set(_ALL_TABLES) - {"alembic_version"}
+assert not _MISSING_FROM_TRUNCATE, (
+    f"tables missing from the truncate list, so rows will leak between tests: "
+    f"{sorted(_MISSING_FROM_TRUNCATE)}"
 )
 
 
@@ -149,6 +163,11 @@ def migrated_database(live_database_url: str) -> str:
     return live_database_url
 
 
+CONSOLE_USERNAME = "ops"
+# Not a credential: a fixture value. tests/** already exempts S105.
+CONSOLE_PASSWORD = "test-console-password"
+
+
 @pytest.fixture
 def db_settings(migrated_database: str) -> Settings:
     return Settings(
@@ -158,6 +177,8 @@ def db_settings(migrated_database: str) -> Settings:
         bsp_provider="360dialog",
         bsp_webhook_secret="test-webhook-secret",
         bsp_verify_token="test-verify-token",
+        console_username=CONSOLE_USERNAME,
+        console_password=CONSOLE_PASSWORD,
     )
 
 
@@ -215,3 +236,56 @@ async def db_app(
     """An app wired to the live test database, with the tenant already seeded."""
     application = create_app(db_settings)
     yield application
+
+
+@pytest.fixture
+async def routed(
+    session_factory: async_sessionmaker[AsyncSession], tenant_id: uuid.UUID
+) -> RoutingSeeder:
+    """Configure a category's cascade order, and a merchant per platform.
+
+    Tests that exercise the cascade end to end need routing rows, and writing
+    them inline in each test buries the interesting part. ``await routed(
+    Category.SALON, "fake_empty", "fake_auth")`` reads as the scenario it is.
+    """
+
+    async def seed(category: Category, *slugs: str) -> None:
+        async with session_factory() as session:
+            for position, slug in enumerate(slugs):
+                session.add(
+                    RoutingConfig(
+                        tenant_id=tenant_id,
+                        category=str(category),
+                        platform_slug=slug,
+                        position=position,
+                    )
+                )
+                session.add(
+                    MerchantCredential(
+                        tenant_id=tenant_id,
+                        platform_slug=slug,
+                        display_name=f"{slug} merchant",
+                        area="Dubai Marina",
+                        external_ids={"centre_id": f"c-{position}"},
+                    )
+                )
+            await session.commit()
+
+    return seed
+
+
+@pytest.fixture
+def console_auth() -> tuple[str, str]:
+    return (CONSOLE_USERNAME, CONSOLE_PASSWORD)
+
+
+@pytest.fixture
+async def console(db_app: FastAPI) -> AsyncIterator[TestClient]:
+    """A logged-in console client against the live test database.
+
+    The context manager runs lifespan, which is what puts ``session_factory`` on
+    app.state — the console reads it from there on every request.
+    """
+    with TestClient(db_app) as test_client:
+        test_client.auth = (CONSOLE_USERNAME, CONSOLE_PASSWORD)
+        yield test_client

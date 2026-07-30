@@ -18,6 +18,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from mawjood.api.console.routes import router as console_router
 from mawjood.api.health import router as health_router
 from mawjood.api.webhooks.whatsapp import router as whatsapp_router
 from mawjood.config import Settings, get_settings
@@ -112,6 +113,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(RequestContextMiddleware)
     app.include_router(health_router)
     app.include_router(whatsapp_router)
+    app.include_router(console_router)
     return app
 
 
