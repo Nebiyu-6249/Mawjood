@@ -127,3 +127,54 @@ class TestDefaults:
     def test_settings_are_frozen(self) -> None:
         with pytest.raises(ValidationError):
             _settings().region = "eu-west-1"  # type: ignore[misc]
+
+
+class TestTheEnvTemplate:
+    """`.env.example` is the operator's checklist. It drifts silently otherwise.
+
+    Phase 2 added five settings and left the template describing three of them as
+    "reserved for later phases" — which is how an operator ends up without a
+    working config and no clue which key is missing.
+    """
+
+    @staticmethod
+    def _template_keys() -> set[str]:
+        import re
+        from pathlib import Path
+
+        text = Path(__file__).resolve().parent.parent.joinpath(".env.example").read_text()
+        return {
+            match.group(1).lower()
+            for match in re.finditer(r"^MAWJOOD_([A-Z_]+)=", text, re.MULTILINE)
+        }
+
+    def test_every_setting_appears_in_the_template(self) -> None:
+        missing = sorted(set(Settings.model_fields) - self._template_keys())
+        assert not missing, (
+            f".env.example is missing {missing}. Every setting belongs in the "
+            "template, uncommented, or an operator cannot configure it."
+        )
+
+    def test_the_template_names_no_setting_that_does_not_exist(self) -> None:
+        # MAWJOOD_TEST_DATABASE_URL is read directly by the test suite rather than
+        # by Settings, so it is deliberately not a field.
+        known = set(Settings.model_fields) | {"test_database_url"}
+        unknown = sorted(self._template_keys() - known)
+        assert not unknown, f".env.example documents settings that do not exist: {unknown}"
+
+    def test_the_template_carries_no_real_credential(self) -> None:
+        import re
+        from pathlib import Path
+
+        # Suffix rather than substring: MAWJOOD_SECRETS_BACKEND names a backend,
+        # it does not hold one. Matching "SECRET" anywhere would flag it.
+        sensitive = ("_KEY", "_SECRET", "_TOKEN", "_DSN", "_PASSWORD", "_URL")
+
+        text = Path(__file__).resolve().parent.parent.joinpath(".env.example").read_text()
+        for match in re.finditer(r"^MAWJOOD_([A-Z_]+)=(.+)$", text, re.MULTILINE):
+            key, value = match.group(1), match.group(2).strip()
+            if any(key.endswith(suffix) for suffix in sensitive):
+                assert "CHANGEME" in value or not value, (
+                    f"MAWJOOD_{key} in .env.example looks like a real value rather "
+                    "than a placeholder. The template must never ship a credential."
+                )
