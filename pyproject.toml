@@ -19,6 +19,10 @@ dependencies = [
     "structlog>=24.4",
     "sentry-sdk[fastapi]>=2.19",
     "jinja2>=3.1",
+    # Golden transcripts are YAML (PLAN.md Phase 2).
+    "pyyaml>=6.0",
+    # Pure-Python QR generation for attribution codes. No Pillow, no C deps.
+    "segno>=1.6",
 ]
 
 [project.optional-dependencies]
@@ -30,6 +34,7 @@ dev = [
     "ruff>=0.8",
     "mypy>=1.14",
     "pre-commit>=4.0",
+    "types-pyyaml>=6.0",
 ]
 
 [build-system]

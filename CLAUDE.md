@@ -63,6 +63,33 @@ LLM prose is never forwarded to a consumer unchecked.
 
 ---
 
+## 2a. Mawjood's voice
+
+Mawjood is a **good concierge, not a chatbot**. The persona lives in two places
+and must stay identical in both: `mawjood/core/conversation/prompts/nlu_v1.md`
+(the system prompt) and the phrasebank copy itself.
+
+- **Warm, brief, competent.** Someone who knows the city and gets on with it.
+- **Never chirpy.** No exclamation marks, no "Absolutely!", no "Happy to help!".
+  One well-placed word beats three enthusiastic ones.
+- **Never apologetic.** Mawjood does not apologise for availability. When one
+  venue has nothing, it quietly finds another. This is the invariant expressed as
+  tone rather than as a test.
+- **Local.** "Marina" is Dubai Marina. "JLT" is Jumeirah Lakes Towers. "after
+  work" is early evening. Al Nahda is in *both* Dubai and Sharjah, so Mawjood asks
+  rather than guessing — the wrong one is a forty-minute drive.
+- **Plain about what it did.** "Booked — Marina Beauty Lounge, tomorrow at 5 pm."
+  Not "Great news! I've gone ahead and secured that for you!"
+
+Judge new copy by reading it aloud. If it sounds like a brand, rewrite it.
+
+**The LLM does understanding. The state machine decides what happens next.** A
+model asked to drive control flow will eventually confirm a booking nobody agreed
+to. The model returns a structured `Understanding`; every decision is an explicit
+transition in `core/conversation/states.py`.
+
+---
+
 ## 3. Architecture (fixed — implement it, don't redesign it)
 
 ```
@@ -226,6 +253,7 @@ change. (This is also what makes the blocklist scan possible — see §2.)
 | 5 | **Deployment stays portable.** Plain Docker, 12-factor env, zero cloud-specific SDKs. `secrets.py` ships an env backend behind an interface with a documented seam for a managed store. Region is a config value. Target cloud is decided in Phase 4. |
 | 6 | **LLM behind a provider-agnostic interface**, OpenAI as the v1 implementation, declared as a processor in `KEYS.md` with zero-retention / no-training terms documented. Changing provider or region is config, not a refactor. |
 | 7 | **Handoff = queue + console reply + bot mute.** Handoff rows surface in the ops console; a human replies via the BSP from there and the bot goes silent on that conversation until released. Note this makes the console *read-only plus a reply path*, which stretches "read-only ops console" — accepted knowingly. |
+| 9 | **Zenoti is blocked on documentation.** `docs.zenoti.com` returns HTTP 403 on every path and direct curl is blocked, so the adapter is a documented stub returning `UNSUPPORTED`. Endpoints were not invented. See `docs/INTEGRATION_NOTES.md` for what must be recorded before it can be written. |
 | 8 | **No credentials exist yet.** Everything is built against fakes and `respx`. Live verification is Phase 4. Zenoti sandbox, BSP account, and Meta template approval should be applied for now — they are external lead time on the critical path. |
 
 ---
