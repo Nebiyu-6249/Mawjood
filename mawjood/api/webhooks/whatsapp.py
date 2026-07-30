@@ -20,13 +20,17 @@ Three deliberate response choices:
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse, PlainTextResponse
+from sqlalchemy import select
 
 from mawjood.config import Settings
 from mawjood.core.conversation.pipeline import UnknownTenant, handle_inbound
+from mawjood.core.enums import MessageStatus
+from mawjood.db.models import Message
 from mawjood.observability.logging import get_logger
 from mawjood.services.bsp.base import SignatureResult, verify_signature
 
@@ -91,17 +95,33 @@ async def receive(request: Request) -> Response:
         log.exception("webhook.parse_failed", provider=getattr(bsp, "slug", "unknown"))
         return JSONResponse({"status": "accepted", "handled": 0}, status_code=200)
 
-    if not inbound_messages:
-        # Statuses, receipts, read markers. Normal traffic, nothing to do.
-        return JSONResponse({"status": "accepted", "handled": 0}, status_code=200)
-
     session_factory = request.app.state.session_factory
+
+    # Delivery statuses ride the same endpoint and one body can carry both, so
+    # they are handled before the early return rather than after it.
+    receipts_applied = await _apply_receipts(bsp, raw_body, session_factory, correlation_id)
+
+    if not inbound_messages:
+        # Statuses, read markers, and payloads carrying nothing actionable.
+        return JSONResponse(
+            {"status": "accepted", "handled": 0, "receipts": receipts_applied}, status_code=200
+        )
+
     results: list[dict[str, Any]] = []
 
     for inbound in inbound_messages:
         async with session_factory() as session:
             try:
-                turn = await handle_inbound(session, inbound, correlation_id=correlation_id)
+                # settings must be passed. Without it the pipeline falls back to
+                # its own defaults and every configured value is silently
+                # ignored on the live path — the adapter registry comes up
+                # empty, the LLM provider reverts, the turn budget and timezone
+                # revert. chat_sim passed settings and this did not, which is
+                # precisely the "two code paths" failure the parity suite exists
+                # to prevent.
+                turn = await handle_inbound(
+                    session, inbound, correlation_id=correlation_id, settings=settings
+                )
             except UnknownTenant:
                 log.exception("webhook.unknown_tenant", tenant=inbound.tenant_slug)
                 await session.rollback()
@@ -120,9 +140,85 @@ async def receive(request: Request) -> Response:
         )
 
     return JSONResponse(
-        {"status": "accepted", "handled": len(results), "turns": results},
+        {
+            "status": "accepted",
+            "handled": len(results),
+            "turns": results,
+            "receipts": receipts_applied,
+        },
         status_code=200,
     )
+
+
+async def _apply_receipts(
+    bsp: Any, raw_body: bytes, session_factory: Any, correlation_id: str
+) -> int:
+    """Record what became of messages we sent. Returns how many were applied.
+
+    Delivery status never reaches a consumer. A failed send is an operations
+    problem, and telling someone "your message failed" is precisely the failure
+    language the invariant exists to prevent — so this writes to ``messages`` and
+    the log, and says nothing.
+
+    Statuses arrive out of order and get replayed, so a receipt only ever moves a
+    message forward: a late "sent" must not undo a "read".
+    """
+    parse = getattr(bsp, "parse_receipts", None)
+    if parse is None:
+        return 0
+    try:
+        receipts = parse(raw_body)
+    except Exception:
+        log.exception("webhook.receipt_parse_failed", provider=getattr(bsp, "slug", "unknown"))
+        return 0
+    if not receipts:
+        return 0
+
+    applied = 0
+    async with session_factory() as session:
+        for receipt in receipts:
+            message = (
+                await session.execute(
+                    select(Message).where(
+                        Message.provider_message_id == receipt.provider_message_id
+                    )
+                )
+            ).scalar_one_or_none()
+            if message is None:
+                # A status for something we did not send, or sent before this
+                # database existed. Not an error.
+                continue
+            if _RANK[receipt.status] <= _RANK.get(message.status, -1):
+                continue
+
+            message.status = receipt.status
+            if receipt.status is MessageStatus.SENT and message.sent_at is None:
+                message.sent_at = receipt.occurred_at or datetime.now(UTC)
+            applied += 1
+
+            if receipt.status is MessageStatus.FAILED:
+                log.error(
+                    "webhook.delivery_failed",
+                    provider_message_id=receipt.provider_message_id,
+                    reason=receipt.failed_reason,
+                    correlation_id=correlation_id,
+                )
+        await session.commit()
+    return applied
+
+
+# Delivery is a one-way ratchet. Providers replay statuses and deliver them out
+# of order, so a late "sent" must never undo a "read".
+_RANK: dict[MessageStatus, int] = {
+    MessageStatus.RECEIVED: 0,
+    MessageStatus.QUEUED: 1,
+    MessageStatus.SENT: 2,
+    MessageStatus.DELIVERED: 3,
+    MessageStatus.READ: 4,
+    # Terminal, and ranked above delivered so a genuine failure is not masked by
+    # a stale optimistic status.
+    MessageStatus.FAILED: 5,
+}
 
 
 def _check_signature(

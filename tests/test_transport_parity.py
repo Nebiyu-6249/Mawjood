@@ -110,6 +110,47 @@ class TestStructuralParity:
 
         assert isinstance(ConsoleBSP(), BSPAdapter)
 
+    def test_both_transports_pass_settings_into_the_pipeline(self) -> None:
+        """Calling the same function is not the same as calling it the same way.
+
+        ``handle_inbound(settings=...)`` is optional, and everything it
+        configures fails *quietly* when it is omitted: the adapter registry comes
+        up empty, the LLM provider reverts to the understudy, the turn budget and
+        timezone revert to defaults. Replies still come back, so a
+        behavioural-parity check comparing greetings sees nothing wrong.
+
+        This is not hypothetical. chat_sim passed settings and the webhook did
+        not, so a booking that worked in the terminal would have found no
+        aggregators on WhatsApp — the exact divergence this file exists to stop,
+        one layer below where it was looking.
+        """
+        import ast
+        from pathlib import Path
+
+        root = Path(__file__).resolve().parent.parent
+        sources = {
+            "webhook": root / "mawjood" / "api" / "webhooks" / "whatsapp.py",
+            "chat_sim": root / "tools" / "chat_sim.py",
+        }
+
+        for name, path in sources.items():
+            tree = ast.parse(path.read_text())
+            calls = [
+                node
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "handle_inbound"
+            ]
+            assert calls, f"{name} does not call handle_inbound at all"
+            for call in calls:
+                keywords = {kw.arg for kw in call.keywords}
+                assert "settings" in keywords, (
+                    f"{name} calls handle_inbound without settings= at line "
+                    f"{call.lineno}. Every configured value would be silently "
+                    "ignored on that transport."
+                )
+
 
 class TestBehaviouralParity:
     async def test_identical_input_produces_identical_replies(

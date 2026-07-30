@@ -22,7 +22,7 @@ from typing import Any
 
 from mawjood.core.conversation.types import InboundMessage, OutboundMessage
 from mawjood.core.enums import Channel
-from mawjood.services.bsp.base import SignatureScheme
+from mawjood.services.bsp.base import DeliveryReceipt, SignatureScheme
 
 
 class ConsoleBSP:
@@ -51,6 +51,14 @@ class ConsoleBSP:
                 raw=payload,
             ),
         )
+
+    def parse_receipts(self, raw_body: bytes) -> Sequence[DeliveryReceipt]:
+        """The terminal has no delivery statuses — the message is on screen.
+
+        Present so the console satisfies the same interface as every other
+        provider and passes the shared conformance suite.
+        """
+        return ()
 
     async def send(self, outbound: OutboundMessage) -> str | None:
         self.sent.append(outbound)
