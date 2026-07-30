@@ -7,27 +7,37 @@ The checklist that must be fully green before Mawjood takes real consumer traffi
 
 ## The invariant — no empty shelves
 
-- [ ] Every phrasebank entry, across every locale, passes the failure-language
+- [x] Every phrasebank entry, across every locale, passes the failure-language
       blocklist scan. *(Phase 1)*
-- [ ] The blocklist scan provably fails when a bad phrase is planted. A scan that
+- [x] The blocklist scan provably fails when a bad phrase is planted. A scan that
       cannot fail is not a scan. *(Phase 1)*
-- [ ] Consumer-facing copy is unforgeable: the send path accepts only a
+- [x] Consumer-facing copy is unforgeable: the send path accepts only a
       `RenderedMessage` from the phrasebank. *(Phase 1)*
-- [ ] Every upstream down → human handoff with a graceful pivot, zero blocklist
+- [x] Every upstream down → human handoff with a graceful pivot, zero blocklist
       words. *(Phase 2)*
-- [ ] `UNSUPPORTED` routes to handoff and never synthesises a success. *(Phase 3)*
+- [x] `UNSUPPORTED` routes to handoff and never synthesises a success — proven
+      against the Zenoti stub, which is the live example. *(Phase 2)*
 
 ## Correctness under failure
 
-- [ ] Timeout on `create_booking` → reconciliation attempted → exactly one
+- [x] Timeout on `create_booking` → reconciliation attempted → exactly one
       successful create across all adapters. *(Phase 2)*
-- [ ] Inconclusive reconciliation → human handoff, never a silent retry
+- [x] Inconclusive reconciliation → human handoff, never a silent retry
       elsewhere. *(Phase 2)*
-- [ ] Deadline expiry → holding pivot inside budget, cascade continues in the
+- [x] Deadline expiry → holding pivot inside budget, cascade continues in the
       background, follow-up delivered. *(Phase 2)*
-- [ ] Failover that materially changes the offer → re-confirmed before booking.
+- [x] Failover that materially changes the offer → re-confirmed before booking.
       *(Phase 2)*
-- [ ] No adapter raises into the router under fault injection. *(Phase 1)*
+- [x] No adapter raises into the router under fault injection. *(Phase 2)*
+
+## Consent boundaries
+
+- [x] Nothing is booked without an explicit consumer confirmation of a concrete
+      slot. *(Phase 2)*
+- [x] A booking additionally requires recorded consent; an availability search
+      does not, because nothing personal leaves in it. *(Phase 2)*
+- [x] After a handoff the assistant goes silent on that conversation until
+      released. *(Phase 2)*
 
 ## Performance
 
@@ -37,8 +47,8 @@ The checklist that must be fully green before Mawjood takes real consumer traffi
 
 ## Compliance
 
-- [ ] PDPL consent captured on first inbound message, with the exact wording
-      shown and a timestamp. *(Phase 2)*
+- [x] PDPL consent captured on first inbound message, with the exact wording
+      shown and a timestamp. *(Phase 1)*
 - [ ] Deletion path purges a consumer across every table including logs, with a
       residue scan proving it. *(Phase 4)*
 - [ ] Configurable retention, and the retention job runs. *(Phase 4)*
@@ -51,7 +61,7 @@ The checklist that must be fully green before Mawjood takes real consumer traffi
 - [x] Logs are structured JSON; credentials are redacted and PII is masked before
       reaching a handler. *(Phase 0)*
 - [ ] 90-day log retention configured in the deployed environment. *(Phase 4)*
-- [ ] `audit_log` row for every routing decision: what was tried, what came back,
+- [x] `audit_log` row for every routing decision: what was tried, what came back,
       why it advanced, what the consumer saw. *(Phase 2)*
 - [ ] Daily backup with 30-day retention, and a restore drill actually performed
       and timed. *(Phase 4)*
