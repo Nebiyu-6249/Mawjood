@@ -68,11 +68,16 @@ Install the git hooks once with `make hooks`.
 
 ## Status
 
-**Phase 1 (foundations) complete.** Eleven tables with tenant scoping enforced in
-the repository layer, an append-only audit trail, PDPL consent capture, the
-phrasebank with its blocklist scan, and a BSP-agnostic WhatsApp webhook with HMAC
-signature verification.
+**Phase 2 (conversation, routing and the cascade) complete**, with one item
+blocked. The fallback cascade, the explicit conversation state machine, golden
+transcripts, source attribution and the adapter contract with nine test doubles
+all ship and are tested.
 
-`make simulate` talks to Mawjood in the terminal with no credentials of any kind,
-driving exactly the same pipeline as the webhook. No aggregator adapters, routing
-engine or NLU yet — that is Phase 2. See [`PLAN.md`](PLAN.md).
+**Zenoti is not implemented.** Its API documentation returns HTTP 403 on every
+route, so per `CLAUDE.md` section 10 the adapter is a documented stub rather than
+guessed endpoints. See `docs/INTEGRATION_NOTES.md`.
+
+```bash
+make seed && make simulate      # book a haircut in Marina, no credentials needed
+make seed-all-down && make simulate   # watch the invariant hold with everything down
+```
