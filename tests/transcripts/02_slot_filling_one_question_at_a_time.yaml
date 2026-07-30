@@ -1,0 +1,27 @@
+name: Details gathered one question at a time
+description: >
+  A bare opening message. Mawjood asks for one missing thing per turn — a
+  concierge asks; a form interrogates.
+new_lead: true
+turns:
+  - user: "hi"
+    expect_state: intent
+    expect_phrases: [greeting.welcome, consent.notice]
+
+  - user: "I need a haircut"
+    expect_state: slot_filling
+    expect_phrases: [ask.area]
+    expect_slots:
+      service: haircut
+
+  - user: "JLT"
+    expect_state: slot_filling
+    expect_phrases: [ask.when]
+    expect_slots:
+      area: JLT
+
+  - user: "thursday"
+    expect_state: slot_presentation
+    expect_action: search
+    expect_slots:
+      date_text: thursday

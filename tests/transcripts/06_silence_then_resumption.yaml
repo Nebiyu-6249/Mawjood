@@ -1,0 +1,25 @@
+name: Silence, then a message a day later
+description: >
+  The consumer goes quiet mid-flow and comes back the next day with nothing new.
+  Mawjood re-orients instead of continuing a sentence they have long forgotten.
+new_lead: false
+initial_consent: granted
+initial_state: slot_filling
+initial_slots:
+  service: haircut
+  category: salon
+  area: Dubai Marina
+turns:
+  - user: "hey"
+    hours_since: 26
+    expect_state: slot_filling
+    expect_phrases: [greeting.resumed]
+    expect_slots:
+      service: haircut
+      area: Dubai Marina
+
+  - user: "tomorrow evening please"
+    hours_since: 0
+    expect_action: search
+    expect_slots:
+      date_text: tomorrow

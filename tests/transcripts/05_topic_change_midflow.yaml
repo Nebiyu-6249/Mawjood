@@ -1,0 +1,26 @@
+name: Topic change mid-flow
+description: >
+  Halfway through booking a haircut the consumer switches to a massage. The new
+  service replaces the old one and the flow continues rather than restarting from
+  the greeting.
+new_lead: false
+initial_consent: granted
+initial_state: slot_filling
+initial_slots:
+  service: haircut
+  category: salon
+  area: Dubai Marina
+turns:
+  - user: "actually can we do a massage instead"
+    expect_state: slot_filling
+    expect_slots:
+      service: massage
+      category: spa
+      area: Dubai Marina
+
+  - user: "tomorrow afternoon"
+    expect_action: search
+    expect_slots:
+      service: massage
+      date_text: tomorrow
+      time_text: afternoon

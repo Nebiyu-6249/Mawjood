@@ -1,0 +1,24 @@
+name: Marina haircut, opening request carries everything
+description: >
+  The headline flow. A consumer opens with service, area and time in one message,
+  so Mawjood greets, shows the PDPL notice, and searches immediately rather than
+  asking questions it already has answers to.
+new_lead: true
+initial_consent: unknown
+turns:
+  - user: "need a haircut in Marina tomorrow evening"
+    expect_state: slot_presentation
+    expect_action: search
+    expect_phrases: [greeting.welcome, consent.notice]
+    expect_slots:
+      service: haircut
+      category: salon
+      area: Dubai Marina
+      date_text: tomorrow
+      time_text: evening
+
+  - user: "yes"
+    # The same yes is both the consent grant and the confirmation of a concrete
+    # slot. Booking is the only transition out of confirmation.
+    expect_state: booking
+    expect_action: book
