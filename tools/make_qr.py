@@ -44,6 +44,16 @@ def normalise_source(raw: str) -> str:
     return parsed
 
 
+def qr_payload(*, phone: str, source: str) -> str:
+    """Exactly the string the QR encodes.
+
+    Extracted from ``main`` so a test can assert that what gets printed is what
+    the parser recognises. A QR encoding a link Mawjood does not understand is a
+    poster that does nothing, and nobody finds out until the campaign is over.
+    """
+    return build_wa_link(phone, normalise_source(source))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate an attribution QR code.")
     parser.add_argument("--source", required=True, help="source code, e.g. SRC12")
@@ -59,7 +69,7 @@ def main() -> int:
     args = parser.parse_args()
 
     source = normalise_source(args.source)
-    link = build_wa_link(args.phone, source)
+    link = qr_payload(phone=args.phone, source=source)
     qr = segno.make(link, error="h")
 
     if args.terminal:

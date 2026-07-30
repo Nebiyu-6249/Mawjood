@@ -102,3 +102,24 @@ policy_version = "2026-07-01"
 # v1 is English only. This is a statement of what Mawjood speaks, not an apology
 # and not a dead end — it asks forward.
 "language.english_only" = "English is what I've got for the moment — send it over in English and I'll take care of it."
+
+# --- Scheduled messages ----------------------------------------------------
+# Reminders, the follow-up and the satisfaction ask. Sent hours or days after
+# the conversation, so most of them land outside WhatsApp's 24-hour session
+# window and need an approved template. None is approved yet, so most of these
+# cannot currently be sent — the scheduler blocks them and says so rather than
+# pretending. See core/notifications/policy.py.
+#
+# Written short on purpose. An unprompted message is an interruption; it earns
+# its place by being useful in one line.
+
+# $venue $time
+"notify.reminder" = "Reminder — $venue at $time today. See you there."
+
+# $venue
+"notify.follow_up" = "How did it go at $venue? Anything you'd like me to sort, just say."
+
+# $venue
+"notify.satisfaction" = "One quick thing on $venue — how would you rate it, 1 to 5?"
+
+"notify.satisfaction_thanks" = "Thanks — noted. I'll keep it in mind next time I'm lining something up for you."

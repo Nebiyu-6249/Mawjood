@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import secrets
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -43,6 +44,12 @@ from mawjood.core.handoff import (
     open_queue,
     release,
     reply,
+)
+from mawjood.core.notifications import (
+    Offsets,
+    Scheduler,
+    Verdict,
+    build_template_registry,
 )
 from mawjood.db.models import AuditLog, Booking, Conversation, HandoffQueue, Lead, Message
 from mawjood.db.repositories.core import TenantRepository
@@ -133,6 +140,51 @@ async def dashboard(request: Request, who: Annotated[str, Depends(operator)]) ->
         request,
         "dashboard.html",
         {"stats": stats, "queue": queue, "leads": leads, "operator": who},
+    )
+
+
+@router.get("/notifications", response_class=HTMLResponse)
+async def scheduled_messages(
+    request: Request, who: Annotated[str, Depends(operator)]
+) -> HTMLResponse:
+    """Every scheduled message, and — the point of the page — what is blocked.
+
+    Reminders that cannot be sent are invisible everywhere else. "We cannot send
+    reminders yet" is precisely the sort of thing that becomes a quiet fact and
+    then a surprise, so it gets a screen.
+    """
+    settings: Settings = request.app.state.settings
+    factory = request.app.state.session_factory
+    async with factory() as session:
+        tenant_id = await _tenant_id(request, session)
+        scheduler = Scheduler(
+            session,
+            tenant_id=tenant_id,
+            offsets=Offsets.from_settings(settings),
+            timezone=settings.timezone,
+        )
+        planned = [item for item in await scheduler.plan_all() if item.plan.due_at is not None]
+        leads = {
+            row.id: row
+            for row in (
+                await session.execute(select(Lead).where(Lead.tenant_id == tenant_id))
+            ).scalars()
+        }
+
+    planned.sort(key=lambda item: item.plan.due_at or datetime.max.replace(tzinfo=UTC))
+    blocked = [i for i in planned if i.plan.verdict is Verdict.BLOCKED_NO_APPROVED_TEMPLATE]
+
+    return TEMPLATES.TemplateResponse(
+        request,
+        "notifications.html",
+        {
+            "planned": planned,
+            "leads": leads,
+            "blocked_count": len(blocked),
+            "window_hours": int(settings.whatsapp_session_window_hours),
+            "templates": build_template_registry().declared,
+            "operator": who,
+        },
     )
 
 

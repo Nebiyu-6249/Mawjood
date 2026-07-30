@@ -79,6 +79,13 @@ class PhraseKey(StrEnum):
     HANDOFF_CONNECTING = "handoff.connecting"
     FALLBACK_UNCLEAR = "fallback.unclear"
 
+    # Scheduled messages. Outside WhatsApp's 24-hour session window these can
+    # only go out as an approved template — see core/notifications/templates.py.
+    NOTIFY_REMINDER = "notify.reminder"
+    NOTIFY_FOLLOW_UP = "notify.follow_up"
+    NOTIFY_SATISFACTION = "notify.satisfaction"
+    NOTIFY_SATISFACTION_THANKS = "notify.satisfaction_thanks"
+
 
 @dataclass(frozen=True, slots=True)
 class RenderedMessage:

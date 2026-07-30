@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import FastAPI
@@ -363,3 +364,50 @@ class TestTenantScope:
 
         with signed_in(db_app) as client:
             assert client.get(f"/console/conversations/{foreign_id}").status_code == 404
+
+
+class TestTheScheduledMessagesPage:
+    """The page exists so "we cannot send reminders yet" is not a quiet fact.
+
+    Blocked notifications appear nowhere else in the product. If this page did
+    not exist, the honest degradation in the scheduler would degrade honestly
+    into a log file nobody reads.
+    """
+
+    async def test_it_names_what_is_blocked_and_why(
+        self,
+        db_app: FastAPI,
+        session_factory: async_sessionmaker[AsyncSession],
+        tenant_id: uuid.UUID,
+    ) -> None:
+        from tests.test_notifications import add_inbound, seed_booking
+
+        # The page reads the real clock, so the booking is placed relative to it:
+        # a reminder due right now, on a conversation that has been quiet for
+        # days. That is the blocked case.
+        now = datetime.now(UTC)
+        async with session_factory() as session:
+            ids = await seed_booking(session, tenant_id, slot_start=now + timedelta(hours=3))
+            await add_inbound(session, tenant_id, ids, at=now - timedelta(hours=60))
+            await session.commit()
+
+        with signed_in(db_app) as client:
+            body = client.get("/console/notifications").text
+
+        assert "waiting on WhatsApp template approval" in body
+        assert "blocked_no_approved_template" in body
+        # And the template register, showing nothing is approved.
+        assert "booking_reminder" in body
+        assert "not_submitted" in body
+
+    async def test_it_says_nothing_alarming_when_there_is_nothing_scheduled(
+        self, db_app: FastAPI, tenant_id: uuid.UUID
+    ) -> None:
+        with signed_in(db_app) as client:
+            response = client.get("/console/notifications")
+        assert response.status_code == 200
+        assert "waiting on WhatsApp template approval" not in response.text
+
+    async def test_it_is_behind_the_credential(self, db_app: FastAPI) -> None:
+        with TestClient(db_app) as client:
+            assert client.get("/console/notifications").status_code == 401

@@ -50,12 +50,16 @@
     code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
     .pill { display: inline-block; padding: .1rem .5rem; border-radius: 10px;
             font-size: .75rem; border: 1px solid var(--line); background: #fff; }
+    .pill.warn { color: var(--warn); border-color: var(--warn); }
+    .notice { background: #fff; border: 1px solid var(--warn); border-left-width: 3px;
+              border-radius: 6px; padding: .8rem 1rem; color: var(--ink); }
   </style>
 </head>
 <body>
   <header>
     <h1>Mawjood <span style="color:var(--muted);font-weight:400">ops</span></h1>
     <a href="/console">queue</a>
+    <a href="/console/notifications">scheduled</a>
     <span class="who">{{ operator }}</span>
   </header>
   <main>{% block content %}{% endblock %}</main>

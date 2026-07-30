@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Mawjood ops — scheduled messages{% endblock %}
+{% block content %}
+  <h2>Scheduled messages</h2>
+
+  {# The point of this page. A blocked notification is invisible everywhere else,
+     and "we cannot send reminders yet" is exactly the thing that must not become
+     a quiet fact. #}
+  {% if blocked_count %}
+    <p class="notice">
+      <strong>{{ blocked_count }}</strong>
+      {{ "message is" if blocked_count == 1 else "messages are" }}
+      waiting on WhatsApp template approval. Outside the
+      {{ window_hours }}-hour session window only an approved template may be sent, and
+      none has been submitted yet. Nothing below marked <code>blocked</code> was sent,
+      and none of it is recorded as sent.
+    </p>
+  {% endif %}
+
+  <table>
+    <tr>
+      <th>due</th><th>kind</th><th>consumer</th><th>venue</th><th>state</th><th>why</th>
+    </tr>
+    {% for item in planned %}
+      <tr>
+        <td><code>{{ item.plan.due_at.strftime("%d %b %H:%M") if item.plan.due_at else "—" }}</code></td>
+        <td>{{ item.kind }}</td>
+        <td>{{ leads[item.lead.id].wa_id if item.lead.id in leads else "—" }}</td>
+        <td>{{ item.booking.venue_name or "—" }}</td>
+        <td>
+          <span class="pill{% if item.plan.verdict.value.startswith('blocked') %} warn{% endif %}">
+            {{ item.plan.verdict }}
+          </span>
+        </td>
+        <td>{{ item.plan.reason }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+
+  <h2>Templates</h2>
+  <table>
+    <tr><th>name</th><th>locale</th><th>status</th><th>mirrors</th></tr>
+    {% for template in templates %}
+      <tr>
+        <td><code>{{ template.name }}</code></td>
+        <td>{{ template.locale }}</td>
+        <td><span class="pill{% if not template.usable %} warn{% endif %}">{{ template.status }}</span></td>
+        <td><code>{{ template.phrasebank_key }}</code></td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endblock %}

@@ -127,3 +127,94 @@ Not started. Merchant-side Order API; full production access needs a partnership
 ### OpenTable, Foodics, Booksy, Talabat, Careem — Phase 3
 Partner-gated. Ship as documented stubs returning `UNSUPPORTED` that register
 cleanly, so they drop in the day credentials arrive.
+
+---
+
+## WhatsApp message templates — Phase 3
+
+**Status: nothing submitted, therefore nothing approved.** This is the single
+constraint that most limits what Mawjood can do today, and it is external lead
+time rather than engineering.
+
+### The constraint
+
+WhatsApp permits free-form business messages only inside a **24-hour session
+window**, measured from the consumer's last inbound message. Outside that window
+a business may send only a **pre-approved message template**, approved by Meta
+per template per language.
+
+Approval requires the operator's Meta Business Manager and a WhatsApp Business
+Account. Neither exists yet (see the Phase 4 prerequisites in `PLAN.md`), so no
+template has been submitted.
+
+### What that costs, concretely
+
+Most scheduled messages land **outside** the window. A booking is usually made in
+one conversation; the reminder fires hours later, by which time the consumer has
+been quiet. So today:
+
+| Notification | Typical timing | Can it be sent? |
+|---|---|---|
+| Reminder (3h before) | usually outside the window | **No** — blocked |
+| Follow-up (2h after) | usually outside | **No** — blocked |
+| Satisfaction (24h after) | always outside | **No** — blocked |
+
+Anything that happens to fall inside the window sends normally as phrasebank
+copy.
+
+### A promise the product currently cannot keep
+
+`booking.confirmed` says *"I'll send you a reminder beforehand."* For most
+bookings that reminder cannot currently be delivered. This is recorded here
+rather than quietly worked around, and there are three ways to resolve it, in
+descending order of preference:
+
+1. **Get the templates approved.** The only real fix. It is on the critical path
+   and should be filed as soon as the Business Manager account exists.
+2. **Soften the copy** until approval lands, so Mawjood does not promise what it
+   cannot do.
+3. Accept the gap knowingly, on the basis that a consumer who is not messaged
+   suffers less than one who is misled.
+
+Left as a decision for the operator, because it is a product call rather than a
+technical one.
+
+### How the code handles it
+
+`mawjood/core/notifications/` treats this as a first-class outcome, not an error:
+
+- `TemplateRegistry` declares all three templates with status `not_submitted`.
+  The names below are **proposed, not registered** — nothing has been submitted,
+  so nothing can be confirmed.
+- The scheduler returns `Verdict.BLOCKED_NO_APPROVED_TEMPLATE`, writes a
+  `notification.blocked` audit row with the reason, and **does not write to
+  `messages`** — `messages` records what a consumer actually received, and a
+  blocked send is not that.
+- The ops console shows the backlog at `/console/notifications`.
+
+| Proposed template name | Mirrors phrasebank key | Variables |
+|---|---|---|
+| `booking_reminder` | `notify.reminder` | venue, time |
+| `booking_follow_up` | `notify.follow_up` | venue |
+| `booking_satisfaction` | `notify.satisfaction` | venue |
+
+### To unblock
+
+1. Create the Meta Business Manager account and WhatsApp Business Account.
+2. Submit the three templates above, in English, with bodies matching the
+   phrasebank entries in `mawjood/core/conversation/phrases/en.toml`. They must
+   say the same thing — a consumer inside the window and one outside it should
+   not receive different messages.
+3. Flip the status in `_V1_TEMPLATES` to `approved`. No other code changes; a
+   test already proves the out-of-window path works once a template is approved.
+4. Confirm the window length against Meta's current policy and adjust
+   `MAWJOOD_WHATSAPP_SESSION_WINDOW_HOURS` if it has changed. It is configuration
+   for exactly this reason.
+
+**Verification status:** the 24-hour window and the template requirement are
+stated from widely-corroborated secondary knowledge of WhatsApp Business policy.
+Meta's own documentation (`developers.facebook.com`) returns HTTP 403 to every
+automated fetch from this environment, so — as with the webhook signature scheme
+above — this is **corroborated but not confirmed against the vendor's own docs**.
+The window length is configuration and the template gate is a data flip, so
+correcting either is a config change rather than a rewrite.
