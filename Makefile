@@ -4,8 +4,9 @@
 # `make simulate` is the fastest way to see Mawjood work: no credentials needed.
 
 .DEFAULT_GOAL := help
-.PHONY: help install run simulate seed test test-integration lint format \
-        typecheck check migrate revision secrets-scan hooks up down logs clean
+.PHONY: help install run simulate seed seed-all-down qr test test-integration \
+        lint format typecheck check migrate revision secrets-scan hooks up down \
+        logs clean
 
 PY := uv run
 
@@ -22,8 +23,14 @@ run: ## Run the API locally with reload
 simulate: ## Chat with Mawjood in the terminal (no WhatsApp credentials needed)
 	$(PY) python tools/chat_sim.py --audit
 
-seed: ## Create the default tenant and starter routing config
+seed: ## Create the default tenant, merchants and routing config
 	$(PY) python tools/seed_dev.py --routing
+
+seed-all-down: ## Reconfigure salon routing so every aggregator fails (invariant demo)
+	$(PY) python tools/seed_dev.py --all-down
+
+qr: ## Generate an attribution QR: make qr src=SRC12
+	$(PY) python tools/make_qr.py --source $(src)
 
 test: ## Run the test suite (no network, ever)
 	$(PY) pytest -q

@@ -37,7 +37,11 @@ from sqlalchemy import delete, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from mawjood.config import Settings, get_settings
-from mawjood.core.conversation.pipeline import UnknownTenant, handle_inbound
+from mawjood.core.conversation.pipeline import (
+    UnknownTenant,
+    deliver_deferred,
+    handle_inbound,
+)
 from mawjood.core.conversation.types import InboundMessage
 from mawjood.core.enums import Channel
 from mawjood.db.engine import create_engine, create_session_factory
@@ -140,13 +144,43 @@ async def run(args: argparse.Namespace, settings: Settings) -> int:
 
             async with session_factory() as session:
                 try:
-                    turn = await handle_inbound(session, inbound, correlation_id=correlation_id)
+                    turn = await handle_inbound(
+                        session, inbound, correlation_id=correlation_id, settings=settings
+                    )
                 except UnknownTenant as exc:
                     print(_colour(colour, YELLOW, f"configuration problem: {exc}"))
                     return 1
 
             for message in turn.outbound:
                 print(f"{_colour(colour, GREEN, 'mawjood')} > {message.text}")
+
+            # The turn budget expired mid-cascade: the holding pivot is already
+            # above, and this finishes the work and delivers the follow-up. On
+            # WhatsApp this is a background task; here we await it so the demo
+            # shows the whole exchange.
+            if (
+                turn.deferred is not None
+                and turn.conversation_id is not None
+                and turn.lead_id is not None
+            ):
+                async with session_factory() as session:
+                    follow_up = await deliver_deferred(
+                        session,
+                        tenant_slug=settings.default_tenant_slug,
+                        conversation_id=turn.conversation_id,
+                        lead_id=turn.lead_id,
+                        channel=Channel.CONSOLE,
+                        deferred=turn.deferred,
+                        correlation_id=correlation_id,
+                    )
+                for message in follow_up.outbound:
+                    print(
+                        f"{_colour(colour, DIM, '(follow-up)')} "
+                        f"{_colour(colour, GREEN, 'mawjood')} > {message.text}"
+                    )
+
+            if args.show_state and turn.state:
+                print(_colour(colour, DIM, f"    [state: {turn.state}]"))
 
             if args.audit:
                 async with session_factory() as session:
@@ -167,6 +201,9 @@ def main() -> int:
     parser.add_argument("--wa-id", help="consumer identifier to use")
     parser.add_argument("--reset", action="store_true", help="erase this consumer first")
     parser.add_argument("--no-colour", action="store_true", help="disable ANSI colour")
+    parser.add_argument(
+        "--show-state", action="store_true", help="print the state machine position per turn"
+    )
     args = parser.parse_args()
 
     # Console output should be readable, not JSON, unless asked otherwise.
