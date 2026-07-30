@@ -45,6 +45,7 @@ from mawjood.core.aggregators.base import (
 )
 from mawjood.core.enums import Category, Outcome
 from mawjood.core.routing.policy import RouterAction, decide
+from mawjood.observability.alerts import AlertKind, Severity, alert
 from mawjood.observability.logging import get_logger
 
 log = get_logger(__name__)
@@ -508,6 +509,20 @@ class Cascade:
             booked=None,
             latency_ms=result.latency_ms,
         )
+        # The highest-stakes alert in the system. We do not know whether this
+        # consumer has a booking, and only a person contacting the venue can find
+        # out. Until they do, the consumer must not be told either way.
+        alert(
+            AlertKind.RECONCILIATION_INCONCLUSIVE,
+            severity=Severity.CRITICAL,
+            summary=(
+                f"{candidate.slug}: create timed out and reconciliation was "
+                "inconclusive — a human must confirm with the venue"
+            ),
+            platform=candidate.slug,
+            merchant_ref=str(candidate.merchant),
+            decision_id=str(decision_id),
+        )
         return BookOutcome(
             status=BookStatus.UNCERTAIN,
             candidate=candidate,
@@ -519,19 +534,30 @@ class Cascade:
     # -- operational logging ------------------------------------------------
 
     def _log_operational(self, candidate: Candidate, decision: Any, result: Result[Any]) -> None:
-        """Surface our problems to operators, never to consumers."""
+        """Surface our problems to operators, never to consumers.
+
+        Both conditions here are alerts rather than log lines, because both keep
+        happening until a person intervenes and neither is discoverable from
+        outside: a rejected credential silently degrades every consumer routed to
+        that merchant, and an open circuit silently removes a platform from the
+        cascade.
+        """
         if decision.degrade_credential:
-            log.error(
-                "aggregator.credential_degraded",
+            alert(
+                AlertKind.CREDENTIAL_DEGRADED,
+                severity=Severity.ERROR,
+                summary=f"{candidate.slug} rejected our credential for {candidate.merchant.display_name}",
                 platform=candidate.slug,
-                merchant=str(candidate.merchant),
+                merchant_ref=str(candidate.merchant),
                 raw_error=result.raw_error,
             )
         if decision.open_circuit:
-            log.warning(
-                "aggregator.circuit_opened",
+            alert(
+                AlertKind.AGGREGATOR_CIRCUIT_OPEN,
+                severity=Severity.WARNING,
+                summary=f"{candidate.slug} is rate limiting us; circuit opened",
                 platform=candidate.slug,
-                merchant=str(candidate.merchant),
+                merchant_ref=str(candidate.merchant),
             )
 
 

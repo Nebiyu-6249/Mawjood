@@ -143,9 +143,12 @@ class TestTheEnvTemplate:
         from pathlib import Path
 
         text = Path(__file__).resolve().parent.parent.joinpath(".env.example").read_text()
+        # Digits are part of a key name — MAWJOOD_NOTIFY_REMINDER_24H_BEFORE is
+        # a setting. An [A-Z_]+ pattern silently skips those and reports them as
+        # missing from a template that documents them perfectly well.
         return {
             match.group(1).lower()
-            for match in re.finditer(r"^MAWJOOD_([A-Z_]+)=", text, re.MULTILINE)
+            for match in re.finditer(r"^MAWJOOD_([A-Z0-9_]+)=", text, re.MULTILINE)
         }
 
     def test_every_setting_appears_in_the_template(self) -> None:

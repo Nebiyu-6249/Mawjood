@@ -29,6 +29,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mawjood.core.aggregators.base import Deadline
@@ -57,6 +58,7 @@ from mawjood.core.conversation.states import (
 )
 from mawjood.core.conversation.types import InboundMessage, OutboundMessage, TurnResult
 from mawjood.core.enums import BookingStatus, Category, ConsentEvent, HandoffReason, PaymentStatus
+from mawjood.core.notifications import Offsets, capture_satisfaction
 from mawjood.core.routing.cascade import Cascade
 from mawjood.core.routing.router import Router
 from mawjood.db.repositories.core import (
@@ -227,6 +229,44 @@ async def handle_inbound(
         else consent_state
     )
 
+    # --- 6b. Satisfaction ---------------------------------------------------
+    # A consumer answering the satisfaction ask sends "4" or "4, staff were
+    # lovely". That is feedback, not a booking request, and it is captured here
+    # before the state machine sees it — the machine has no state for "rating a
+    # past visit" and would read a bare number as a slot choice.
+    #
+    # Only when we actually asked. Otherwise "book me 5 people" scores a 5.
+    if await _awaiting_satisfaction(session, tenant.id, conversation.id):
+        captured = await capture_satisfaction(
+            session,
+            tenant_id=tenant.id,
+            conversation_id=conversation.id,
+            lead_id=lead.id,
+            text=inbound.text,
+            audit=audit,
+        )
+        if captured is not None:
+            thanks = phrasebank.render(PhraseKey.NOTIFY_SATISFACTION_THANKS, lead.locale)
+            outbound = await _emit(
+                messages=messages,
+                audit=audit,
+                rendered=[thanks],
+                conversation_id=conversation.id,
+                lead_id=lead.id,
+                channel=inbound.channel,
+                turn_id=audit.turn_id,
+            )
+            conversation.last_activity_at = datetime.now(UTC)
+            if commit:
+                await session.commit()
+            return TurnResult(
+                turn_id=audit.turn_id,
+                outbound=tuple(outbound),
+                conversation_id=conversation.id,
+                lead_id=lead.id,
+                state=conversation.state,
+            )
+
     # --- 7. Decide ---------------------------------------------------------
     transition = advance(
         MachineInput(
@@ -290,6 +330,7 @@ async def handle_inbound(
             conversation_id=conversation.id,
             lead_id=lead.id,
             payload=outcome.booking,
+            offsets=Offsets.from_settings(settings) if settings is not None else None,
         )
 
     handoff_reason = outcome.handoff_reason or transition.handoff_reason
@@ -466,7 +507,9 @@ async def _record_booking(
     conversation_id: uuid.UUID,
     lead_id: uuid.UUID,
     payload: Mapping[str, Any],
+    offsets: Any = None,
 ) -> None:
+    from mawjood.core.notifications import schedule_for_booking
     from mawjood.db.models import Booking
 
     booking = Booking(
@@ -489,6 +532,34 @@ async def _record_booking(
     )
     session.add(booking)
     await session.flush()
+
+    # Reminders become rows here, not timers. Written in the same transaction as
+    # the booking, so a booking that exists always has its schedule and a crash
+    # cannot leave a consumer booked but never reminded.
+    await schedule_for_booking(session, tenant_id=tenant_id, booking=booking, offsets=offsets)
+
+
+async def _awaiting_satisfaction(
+    session: AsyncSession, tenant_id: uuid.UUID, conversation_id: uuid.UUID
+) -> bool:
+    """Whether the satisfaction ask actually went out on this conversation.
+
+    Guards against scoring a message nobody asked for. Without it "book me 5
+    people" parses as a five-star review, which is both wrong and a lost booking.
+    """
+    from mawjood.core.enums import Direction, NotificationKind
+    from mawjood.core.notifications import PHRASE_FOR
+    from mawjood.db.models import Message as MessageModel
+
+    asked = await session.execute(
+        select(MessageModel.id)
+        .where(MessageModel.tenant_id == tenant_id)
+        .where(MessageModel.conversation_id == conversation_id)
+        .where(MessageModel.direction == Direction.OUTBOUND)
+        .where(MessageModel.phrasebank_key == PHRASE_FOR[NotificationKind.SATISFACTION])
+        .limit(1)
+    )
+    return asked.scalar_one_or_none() is not None
 
 
 async def _enqueue_handoff(

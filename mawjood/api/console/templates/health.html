@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% set nav = 'health' %}
+{% block title %}Health — Mawjood ops{% endblock %}
+{% block content %}
+  <h2>System health</h2>
+  <p class="lede">
+    What an operator checks first. For machine monitoring use
+    <code>/healthz</code> (liveness) and <code>/readyz</code> (readiness) — both
+    unauthenticated and UptimeRobot-shaped.
+  </p>
+  <table>
+    <tr><th style="width:16rem">database</th><td>{% if health.database_ok %}<span class="pill good">reachable</span>{% else %}<span class="pill bad">unreachable</span>{% endif %}</td></tr>
+    <tr><th>tenant configured</th><td>{% if health.tenant_ok %}<span class="pill good">yes</span>{% else %}<span class="pill bad">missing</span>{% endif %}</td></tr>
+    <tr><th>phrasebank locales</th><td>{% for l in health.phrasebank_locales %}<span class="pill">{{ l }}</span> {% endfor %}</td></tr>
+    <tr><th>adapters registered</th><td>{% for a in health.registered_adapters %}<span class="pill{{ ' good' if a in health.implemented_adapters }}">{{ a }}</span> {% endfor %}</td></tr>
+    <tr><th>stalled conversations</th><td>{{ health.stalled_conversations }}<div class="l" style="color:var(--muted);font-size:.8rem">no activity for 30 min and not closed. A rising number means turns are dying mid-flight.</div></td></tr>
+    <tr><th>waiting for a person</th><td>{{ health.open_handoffs }}{% if health.oldest_pending_handoff_minutes %} <span class="pill warn">oldest {{ "%.0f"|format(health.oldest_pending_handoff_minutes) }} min</span>{% endif %}</td></tr>
+    <tr><th>deferred notifications</th><td>{{ health.deferred_notifications }}<div style="color:var(--muted);font-size:.8rem">Expected non-zero until templates are approved. A <em>rising</em> number is the signal.</div></td></tr>
+    <tr><th>failed sends (24h)</th><td>{% if health.failed_sends_24h %}<span class="pill bad">{{ health.failed_sends_24h }}</span>{% else %}0{% endif %}</td></tr>
+  </table>
+
+  <h2>Adapters</h2>
+  <p class="lede">
+    Green means implemented against a live contract. The rest register cleanly and
+    return <code>UNSUPPORTED</code>, so the router advances past them and no
+    consumer ever notices — see <code>docs/INTEGRATION_NOTES.md</code> for what
+    each one needs.
+  </p>
+{% endblock %}

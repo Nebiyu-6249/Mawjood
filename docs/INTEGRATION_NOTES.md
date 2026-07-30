@@ -121,46 +121,171 @@ exercises the identical contract.
 **To unblock:** someone with browser access records the answers above here, then
 replaces the stub. Nothing outside that one file changes.
 
-### Deliveroo — Phase 3: BLOCKED, documentation unreachable
+---
 
-Same failure as Zenoti, re-verified during Phase 3.
+## Deliveroo — Phase 3: implemented to the contract, blocked on two things
+
+Re-verified 2026-07-30. Both blockers are recorded because they are *different
+kinds of blocker*, and treating them the same would waste somebody's quarter.
+
+### Blocker 1 — the documentation is unreachable
 
 | Attempt | Result |
 |---|---|
-| `https://api-docs.deliveroo.com/docs/introduction` | HTTP 403 |
-| `https://developers.deliveroo.com/docs` | HTTP 403 |
-| `https://api-docs.deliveroo.com/` (direct curl, browser UA) | connection refused (000) |
-| `https://api-docs.deliveroo.com/v2.0/reference` (direct curl) | connection refused (000) |
-| `https://developers.deliveroo.com/` (direct curl) | connection refused (000) |
+| `https://api-docs.deliveroo.com/docs/introduction` | HTTP 403 (2026-07-30) |
+| `https://developers.deliveroo.com/docs` | HTTP 403 (2026-07-30) |
+| `https://api-docs.deliveroo.com/ (direct curl, browser UA)` | connection refused |
+| `https://api-docs.deliveroo.com/v2.0/reference (direct curl)` | connection refused |
+| `https://developers.deliveroo.com/ (direct curl)` | connection refused |
 
-**What is known without the docs, and is not enough:** the Order API is
-merchant-side, and full production access requires a partnership agreement
-rather than self-serve signup.
+Per CLAUDE.md section 10 nothing was written from memory.
+`mawjood/core/aggregators/deliveroo/` names no endpoint, no host and no header,
+and a test asserts that.
 
-**What remains unknown, and is required:** base URL, auth model, every endpoint
-path, request and response shapes, rate limits, the error taxonomy, and whether
-order creation honours an idempotency key. As with Zenoti, that last point is
-what the double-booking defence in CLAUDE.md section 5.1 rests on.
+### Blocker 2 — the Order API is not shaped for what an outside assistant needs
 
-**Status:** `mawjood/core/aggregators/partners.py` ships `DeliverooAdapter` as a
-documented stub that registers cleanly, declares no capabilities, and returns
-`UNSUPPORTED`, so the router advances past it and the consumer never notices.
+This is the more important finding, and it does **not** clear with a partnership.
 
-**Consequence for the phase:** Phase 3's headline deliverable was "prove the
-plugin claim with a real second platform". The claim is instead proven
-structurally — `tests/adapters/test_plugin_claim.py` registers a brand-new
-platform in one file plus one config row, touching zero core files, and asserts
-by AST walk that no aggregator slug appears anywhere in `core/routing/`,
-`core/conversation/`, `api/` or `db/`. That is the property the deliverable
-existed to establish; what is still missing is a live platform to demonstrate it
-against.
+Deliveroo's Order API is **merchant-side**: it is the interface a restaurant's
+point-of-sale system uses to *receive* orders that Deliveroo has already taken
+from a consumer through Deliveroo's own apps — to accept them, mark them ready,
+reconcile them. Orders flow *into* it.
 
-**To unblock:** someone with browser access records the answers above here.
-Nothing outside `partners.py` changes.
+Mawjood is an outside assistant acting for a consumer, so the direction it needs
+— *place* an order on someone's behalf — is not what that API does. A partnership
+would grant access to the merchant side of a restaurant we do not operate.
 
-### OpenTable, Foodics, Booksy, Talabat, Careem — Phase 3
-Partner-gated. Ship as documented stubs returning `UNSUPPORTED` that register
-cleanly, so they drop in the day credentials arrive.
+So the adapter records support **per method**, distinguishing "we lack the
+contract" from "this API does not do this":
+
+| Method | Support | Clears with a partnership? | Why |
+|---|---|---|---|
+| `search_availability` | `blocked` | yes | Restaurant open/closed and delivery-zone data plausibly exists, but the contract is unknown and the docs are unreachable. |
+| `create_booking` | `not_what_this_api_is_for` | **no** | The Order API receives orders Deliveroo has already taken from a consumer through its own apps. It does not place them. An outside assistant cannot originate an order through it, with or without a partnership. |
+| `get_booking` | `not_what_this_api_is_for` | **no** | A merchant can read orders it received. Mawjood never originates one, so there is nothing of ours to read back. |
+| `find_by_idempotency_key` | `not_what_this_api_is_for` | **no** | Reconciliation presupposes a create we performed. See create_booking. |
+| `reschedule` | `not_what_this_api_is_for` | **no** | Food delivery has no reschedule in the sense a booking does. |
+| `cancel` | `blocked` | yes | Merchant-side cancellation exists, but only for orders the merchant owns. Unusable until the two above resolve. |
+| `health` | `blocked` | yes | Needs a base URL and a credential; both unknown. |
+
+**The consequence for planning:** pursuing a Deliveroo partnership will not
+unlock consumer food ordering. If food delivery matters for v1, the question to
+answer first is whether *any* aggregator in this market exposes consumer-side
+ordering to a third party — see the Talabat checklist below, which asks exactly
+that before any integration work is funded.
+
+### Status
+
+`DeliverooAdapter` implements every method of the contract with correct
+signatures and typed outcomes, never raises into the router, and returns
+`UNSUPPORTED` throughout. The router advances past it; if nothing else can serve,
+the conversation reaches a human. No consumer ever learns any of this.
+
+### To activate
+
+1. Obtain readable API documentation (browser access, or a partner portal login).
+2. Record base URL, auth model, endpoints, pagination, rate limits and error
+   shapes here.
+3. Confirm whether any consumer-side ordering capability exists for third
+   parties. If not, mark this platform permanently `NOT_WHAT_THIS_API_IS_FOR`
+   for `create_booking` and re-scope it to search-only or drop it.
+4. Confirm idempotency on create and the post-timeout reconciliation path —
+   CLAUDE.md section 5.1 depends on it.
+
+Nothing outside `mawjood/core/aggregators/deliveroo/` changes.
+
+---
+
+## Partner-gated platforms — activation checklists
+
+All five register cleanly, declare no capabilities, and return `UNSUPPORTED`.
+None ever synthesises a success. The checklists below live in
+`mawjood/core/aggregators/partners.py` as data and this section is generated from
+them, so the two cannot drift.
+
+
+### opentable
+
+Restaurant reservations. Closest fit to Mawjood's flow of the five.
+
+- **Blocker:** affiliate approval required — the reservation API is gated behind an affiliate agreement
+- **Categories:** restaurant
+- **Docs:** OpenTable partner/affiliate portal (requires an approved account)
+
+**To activate:**
+
+1. Apply to the OpenTable affiliate or partner programme as the operating entity.
+2. Obtain the restaurant-availability and reservation API contract; record endpoints, auth, pagination, rate limits and error shapes in docs/INTEGRATION_NOTES.md.
+3. Confirm whether reservations can be created on a consumer's behalf by a third party, or only deep-linked. If only deep-linked, this platform can never complete a booking and should be re-scoped to search-only.
+4. Confirm idempotency on create, and how to determine after a timeout whether a reservation landed (CLAUDE.md 5.1 depends on this).
+5. Confirm UAE market coverage — the UAE presence is thinner than the US.
+
+
+### foodics
+
+GCC restaurant POS. Merchant-side, like Deliveroo — check direction first.
+
+- **Blocker:** merchant app registration required — needs an app registered against each merchant's Foodics account
+- **Categories:** restaurant, food_delivery
+- **Docs:** Foodics developer portal (requires a developer account)
+
+**To activate:**
+
+1. Register a developer account and create an application.
+2. Establish the per-merchant authorisation flow — Foodics is merchant-side, so each venue authorises us separately. Confirm this fits the merchant_credentials model (it should: that is what decision 1 is for).
+3. Determine whether the API exposes *reservations* or only orders and menu management. If orders only, the same constraint as Deliveroo applies and an outside assistant cannot originate one.
+4. Record endpoints, auth, rate limits and error shapes.
+5. Confirm idempotency on create and the post-timeout reconciliation path.
+
+
+### booksy
+
+Salon and barber bookings. Second-best salon fit after Zenoti.
+
+- **Blocker:** partner API licence required — no public booking API; access is by commercial agreement
+- **Categories:** salon, spa
+- **Docs:** none public — obtained under agreement
+
+**To activate:**
+
+1. Contact Booksy partnerships as the operating entity and establish whether a third-party booking API exists at all. This is the open question; if the answer is no, close this adapter out rather than leaving it hopeful.
+2. If yes, obtain the contract and record it in docs/INTEGRATION_NOTES.md.
+3. Confirm UAE coverage and how venues map to merchant credentials.
+4. Confirm idempotency on create and the post-timeout reconciliation path.
+
+
+### talabat
+
+UAE food delivery. Expect the Deliveroo constraint to repeat here.
+
+- **Blocker:** partnership required — no public consumer ordering API
+- **Categories:** food_delivery
+- **Docs:** none public — Delivery Hero partner channels
+
+**To activate:**
+
+1. Approach Talabat/Delivery Hero partnerships as the operating entity.
+2. Establish first, before anything else, whether a consumer-side ordering API exists for third parties. Deliveroo's does not; assume the same until shown otherwise, and do not spend on integration work before this answer.
+3. If ordering is merchant-side only, mark this platform not_what_this_api_is_for, as core/aggregators/deliveroo does.
+4. Otherwise record the contract and confirm idempotency on create.
+
+
+### careem
+
+Rides and food, UAE. The ride category has no other candidate.
+
+- **Blocker:** partnership required — Everything App APIs are partner-gated
+- **Categories:** ride, food_delivery
+- **Docs:** none public — Careem partner channels
+
+**To activate:**
+
+1. Approach Careem partnerships as the operating entity.
+2. Scope which vertical is in play. Rides and food are different products with different contracts; do not assume one agreement covers both.
+3. For rides, confirm whether a booking can be made on a consumer's behalf or only deep-linked into the Careem app.
+4. Note that ride is the only category with no second candidate configured, so until this exists every ride request goes to a human. That is correct behaviour, not a bug, but it is worth knowing before launch.
+5. Record the contract and confirm idempotency on create.
+
 
 ---
 

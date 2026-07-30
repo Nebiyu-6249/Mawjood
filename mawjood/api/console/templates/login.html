@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Sign in — Mawjood ops{% endblock %}
+{% block content %}
+  <form class="card" method="post" action="/console/login">
+    <h1 style="font-size:1rem;margin:0 0 .2rem">Mawjood <span style="color:var(--muted);font-weight:400">ops</span></h1>
+    <p class="lede" style="margin-top:.3rem">This console shows every consumer's transcript. Sign in.</p>
+    <label for="u">Operator</label>
+    <input id="u" name="username" type="text" autocomplete="username" autofocus required>
+    <label for="p">Password</label>
+    <input id="p" name="password" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  </form>
+{% endblock %}

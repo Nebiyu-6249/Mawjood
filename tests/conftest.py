@@ -66,6 +66,7 @@ needs_database = pytest.mark.skipif(
 _ALL_TABLES = (
     "audit_log",
     "handoff_queue",
+    "scheduled_notifications",
     "feedback",
     "attribution",
     "consents",

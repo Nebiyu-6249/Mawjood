@@ -1,33 +1,76 @@
 {% extends "base.html" %}
-{% block title %}Mawjood ops — queue{% endblock %}
+{% set nav = 'dashboard' %}
+{% block title %}Overview — Mawjood ops{% endblock %}
 {% block content %}
   <h2>Today</h2>
   <div class="cards">
     <div class="card"><div class="n">{{ stats.leads }}</div><div class="l">consumers</div></div>
     <div class="card"><div class="n">{{ stats.conversations }}</div><div class="l">conversations</div></div>
     <div class="card"><div class="n">{{ stats.bookings }}</div><div class="l">bookings</div></div>
+    <div class="card"><div class="n">{{ stats.inbound }}</div><div class="l">messages in</div></div>
     <div class="card"><div class="n">{{ stats.waiting }}</div><div class="l">waiting for a person</div></div>
+    {% if satisfaction[0] is not none %}
+      <div class="card"><div class="n">{{ "%.1f"|format(satisfaction[0]) }}</div><div class="l">avg rating ({{ satisfaction[1] }})</div></div>
+    {% endif %}
   </div>
 
-  <h2>Handoff queue</h2>
+  {% if health.deferred_notifications %}
+    <p class="notice" style="margin-top:1.2rem">
+      <strong>{{ health.deferred_notifications }}</strong>
+      scheduled {{ "message is" if health.deferred_notifications == 1 else "messages are" }}
+      waiting on WhatsApp template approval — held, not sent, not recorded as sent.
+      <a href="/console/scheduled">See what is held</a>.
+    </p>
+  {% endif %}
+
+  <h2>Waiting for a person</h2>
   {% if queue %}
     <table>
       <tr><th>waiting since</th><th>consumer</th><th>reason</th><th>status</th><th></th></tr>
-      {% for item in queue %}
+      {% for handoff, conversation, lead in queue %}
         <tr>
-          <td><code>{{ item.handoff.created_at.strftime("%d %b %H:%M") }}</code></td>
-          <td>{{ leads[item.handoff.lead_id].wa_id if item.handoff.lead_id in leads else "—" }}</td>
-          <td>{{ item.handoff.reason }}</td>
-          <td>
-            <span class="pill">{{ item.handoff.status }}</span>
-            {% if item.handoff.claimed_by %}<span class="pill">{{ item.handoff.claimed_by }}</span>{% endif %}
-          </td>
-          <td><a href="/console/conversations/{{ item.conversation.id }}">open</a></td>
+          <td><code>{{ handoff.created_at.strftime("%d %b %H:%M") }}</code></td>
+          <td>{{ lead.wa_id }}</td>
+          <td>{{ handoff.reason }}</td>
+          <td><span class="pill warn">{{ handoff.status }}</span>{% if handoff.claimed_by %} <span class="pill">{{ handoff.claimed_by }}</span>{% endif %}</td>
+          <td><a href="/console/conversations/{{ conversation.id }}/trace">trace</a></td>
         </tr>
       {% endfor %}
     </table>
   {% else %}
-    {# Deliberately not "no results". Nobody is waiting is good news. #}
-    <p class="empty">Everyone has been looked after — nothing waiting.</p>
+    {# Deliberately not "no results". Nobody waiting is good news. #}
+    <p class="quiet">Everyone has been looked after — nothing waiting.</p>
   {% endif %}
+
+  <h2>Aggregators</h2>
+  {% if aggregators %}
+    <table>
+      <tr><th>platform</th><th>attempts</th><th>success</th><th>median</th><th>p95</th></tr>
+      {% for stat in aggregators %}
+        <tr>
+          <td><code>{{ stat.platform_slug }}</code></td>
+          <td class="num">{{ stat.attempts }}</td>
+          <td class="num">{{ "%.0f%%"|format(stat.success_rate * 100) }}</td>
+          <td class="num">{{ stat.median_latency_ms if stat.median_latency_ms is not none else "—" }}</td>
+          <td class="num">{{ stat.p95_latency_ms if stat.p95_latency_ms is not none else "—" }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p class="quiet">No routing attempts recorded yet.</p>
+  {% endif %}
+
+  <h2>Latest conversations</h2>
+  <table>
+    <tr><th>last activity</th><th>consumer</th><th>state</th><th>msgs</th><th></th></tr>
+    {% for conversation, lead, count in recent %}
+      <tr>
+        <td><code>{{ conversation.last_activity_at.strftime("%d %b %H:%M") }}</code></td>
+        <td><a href="/console/conversations/{{ conversation.id }}">{{ lead.wa_id }}</a></td>
+        <td><span class="pill{% if conversation.bot_muted %} warn{% endif %}">{{ conversation.state }}</span></td>
+        <td class="num">{{ count }}</td>
+        <td><a href="/console/conversations/{{ conversation.id }}/trace">trace</a></td>
+      </tr>
+    {% endfor %}
+  </table>
 {% endblock %}
