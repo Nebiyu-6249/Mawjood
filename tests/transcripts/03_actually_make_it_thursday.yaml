@@ -1,0 +1,25 @@
+name: "Actually make it Thursday"
+description: >
+  A correction arriving while an offer is on the table. The pending offer is
+  dropped, the date is overwritten rather than added to, and Mawjood searches
+  again. Booking on the stale offer here would book the wrong day.
+new_lead: false
+initial_consent: granted
+initial_state: slot_filling
+initial_slots:
+  service: haircut
+  category: salon
+  area: Dubai Marina
+  date_text: tomorrow
+turns:
+  - user: "tomorrow evening works"
+    expect_action: search
+
+  - user: "actually make it Thursday"
+    expect_state: slot_filling
+    expect_action: search
+    expect_phrases: [ack.changed]
+    expect_slots:
+      date_text: thursday
+      service: haircut
+      area: Dubai Marina

@@ -1,0 +1,22 @@
+name: An area that exists in two emirates
+description: >
+  Al Nahda is in both Dubai and Sharjah, forty minutes apart. Mawjood asks which
+  rather than picking one — and must not retain a guessed area.
+new_lead: false
+initial_consent: granted
+initial_state: slot_filling
+initial_slots:
+  service: haircut
+  category: salon
+turns:
+  - user: "somewhere in Al Nahda"
+    expect_state: clarification
+    expect_phrases: [clarify.area]
+    expect_slots:
+      area: null
+
+  - user: "Al Nahda Dubai"
+    expect_state: slot_filling
+    expect_phrases: [ask.when]
+    expect_slots:
+      area: "Al Nahda, Dubai"

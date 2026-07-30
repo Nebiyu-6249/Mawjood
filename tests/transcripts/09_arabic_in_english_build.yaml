@@ -1,0 +1,18 @@
+name: Arabic arriving in an English-only build
+description: >
+  v1 operates in English. Mawjood says so plainly and asks forward — it does not
+  apologise, does not pretend to understand, and does not dead-end. When ar.toml
+  ships, this transcript changes and no code does.
+new_lead: false
+initial_consent: granted
+initial_state: intent
+turns:
+  - user: "أحتاج قص شعر في مارينا غدا"
+    expect_phrases: [language.english_only]
+    forbid_phrases: [fallback.unclear, handoff.connecting]
+
+  - user: "ok sorry - need a haircut in Marina tomorrow evening"
+    expect_action: search
+    expect_slots:
+      service: haircut
+      area: Dubai Marina

@@ -1,0 +1,14 @@
+name: A single emoji
+description: >
+  Carries no information to act on. Mawjood answers warmly and asks forward
+  rather than reporting that it did not understand.
+new_lead: false
+initial_consent: granted
+initial_state: intent
+turns:
+  - user: "👍"
+    expect_phrases: [fallback.emoji]
+    forbid_phrases: [fallback.unclear]
+
+  - user: "🙏🏼✨"
+    expect_phrases: [fallback.emoji]

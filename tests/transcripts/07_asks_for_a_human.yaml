@@ -1,0 +1,16 @@
+name: Consumer asks for a person
+description: >
+  Honoured immediately from any state, ahead of everything else. Nobody should
+  have to fight a bot to reach a human.
+new_lead: false
+initial_consent: granted
+initial_state: slot_filling
+initial_slots:
+  service: haircut
+  area: Dubai Marina
+turns:
+  - user: "can I speak to someone please"
+    expect_state: handoff
+    expect_action: handoff
+    expect_phrases: [handoff.connecting]
+    forbid_phrases: [ask.when, ask.area, fallback.unclear]

@@ -134,7 +134,10 @@ class TestConsentJourney:
                 session, inbound(db_settings, wa_id, "yes"), correlation_id="c2"
             )
 
-        assert [m.phrasebank_key for m in turn.outbound] == [PhraseKey.CONSENT_ACKNOWLEDGED]
+        # Phase 2 replaced the scripted responder with the state machine, so the
+        # reply now moves the conversation forward rather than only acknowledging
+        # the notice. What matters is unchanged: the grant is recorded.
+        assert [m.phrasebank_key for m in turn.outbound] == [PhraseKey.ASK_SERVICE]
 
         async with session_factory() as session:
             lead = await LeadRepository(session, tenant_id).get_by_wa_id(wa_id)
