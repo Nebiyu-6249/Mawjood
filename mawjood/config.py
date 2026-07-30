@@ -95,6 +95,20 @@ class Settings(BaseSettings):
     # not exist.
     enable_fake_adapters: bool = True
 
+    # --- Scheduled messages ---------------------------------------------------
+    # Offsets relative to the booking, in hours. Product decisions an operator
+    # may want to move without a deploy.
+    notify_reminder_hours_before: float = Field(default=3.0, ge=0)
+    notify_follow_up_hours_after: float = Field(default=2.0, ge=0)
+    notify_satisfaction_hours_after: float = Field(default=24.0, ge=0)
+    # How long a notification stays sendable after its moment passes. A
+    # scheduler down for an hour should still send; one down for a day must not.
+    notify_grace_hours: float = Field(default=2.0, ge=0)
+    # WhatsApp's customer-service window. Outside it only an approved template
+    # may be sent, and Mawjood has none approved — see core/notifications/.
+    # Configurable because it is a provider policy, not a law of nature.
+    whatsapp_session_window_hours: float = Field(default=24.0, gt=0)
+
     # --- Ops console ----------------------------------------------------------
     # HTTP Basic. The console refuses to serve at all when no password is set —
     # an unauthenticated console exposes every consumer's transcript.
