@@ -91,10 +91,13 @@ def build_default_registry(*, include_fakes: bool = False) -> AdapterRegistry:
         InconclusiveTimeoutFake,
         TimeoutFake,
     )
+    from mawjood.core.aggregators.partners import PARTNER_ADAPTERS
     from mawjood.core.aggregators.zenoti import ZenotiAdapter
 
     registry = AdapterRegistry()
     registry.register(ZenotiAdapter())
+    for partner in PARTNER_ADAPTERS:
+        registry.register(partner())
 
     if include_fakes:
         _warn_about_fakes(note="test doubles are active; bookings are not real")

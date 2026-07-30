@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Mawjood ops — queue{% endblock %}
+{% block content %}
+  <h2>Today</h2>
+  <div class="cards">
+    <div class="card"><div class="n">{{ stats.leads }}</div><div class="l">consumers</div></div>
+    <div class="card"><div class="n">{{ stats.conversations }}</div><div class="l">conversations</div></div>
+    <div class="card"><div class="n">{{ stats.bookings }}</div><div class="l">bookings</div></div>
+    <div class="card"><div class="n">{{ stats.waiting }}</div><div class="l">waiting for a person</div></div>
+  </div>
+
+  <h2>Handoff queue</h2>
+  {% if queue %}
+    <table>
+      <tr><th>waiting since</th><th>consumer</th><th>reason</th><th>status</th><th></th></tr>
+      {% for item in queue %}
+        <tr>
+          <td><code>{{ item.handoff.created_at.strftime("%d %b %H:%M") }}</code></td>
+          <td>{{ leads[item.handoff.lead_id].wa_id if item.handoff.lead_id in leads else "—" }}</td>
+          <td>{{ item.handoff.reason }}</td>
+          <td>
+            <span class="pill">{{ item.handoff.status }}</span>
+            {% if item.handoff.claimed_by %}<span class="pill">{{ item.handoff.claimed_by }}</span>{% endif %}
+          </td>
+          <td><a href="/console/conversations/{{ item.conversation.id }}">open</a></td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    {# Deliberately not "no results". Nobody is waiting is good news. #}
+    <p class="empty">Everyone has been looked after — nothing waiting.</p>
+  {% endif %}
+{% endblock %}

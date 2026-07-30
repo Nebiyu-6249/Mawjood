@@ -95,6 +95,12 @@ class Settings(BaseSettings):
     # not exist.
     enable_fake_adapters: bool = True
 
+    # --- Ops console ----------------------------------------------------------
+    # HTTP Basic. The console refuses to serve at all when no password is set —
+    # an unauthenticated console exposes every consumer's transcript.
+    console_username: str = "ops"
+    console_password: SecretStr | None = None
+
     # --- Secrets --------------------------------------------------------------
     secrets_backend: Literal["env", "static"] = "env"
 
@@ -133,6 +139,7 @@ class Settings(BaseSettings):
         "bsp_api_key",
         "bsp_api_base",
         "openai_api_key",
+        "console_password",
         mode="before",
     )
     @classmethod
@@ -185,6 +192,11 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "bsp_webhook_secret is required in production so inbound "
                     "webhooks can be verified"
+                )
+            if self.console_password is None:
+                raise ValueError(
+                    "console_password is required in production: the ops console "
+                    "exposes every consumer's transcript"
                 )
         return self
 

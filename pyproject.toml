@@ -19,6 +19,9 @@ dependencies = [
     "structlog>=24.4",
     "sentry-sdk[fastapi]>=2.19",
     "jinja2>=3.1",
+    # Form parsing for the ops console reply path. FastAPI requires it for
+    # Form() parameters.
+    "python-multipart>=0.0.20",
     # Golden transcripts are YAML (PLAN.md Phase 2).
     "pyyaml>=6.0",
     # Pure-Python QR generation for attribution codes. No Pillow, no C deps.

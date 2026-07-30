@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Mawjood ops — conversation{% endblock %}
+{% block content %}
+  <h2>Conversation</h2>
+  <table>
+    <tr><th>consumer</th><td>{{ lead.wa_id if lead else "—" }}{% if lead and lead.display_name %} ({{ lead.display_name }}){% endif %}</td></tr>
+    <tr><th>channel</th><td>{{ conversation.channel }}</td></tr>
+    <tr><th>state</th><td><span class="pill">{{ conversation.state }}</span></td></tr>
+    <tr><th>assistant</th><td>{% if conversation.bot_muted %}<span class="pill">muted — a person owns this</span>{% else %}<span class="pill">active</span>{% endif %}</td></tr>
+    {% if conversation.collected_slots %}
+      <tr><th>gathered</th><td><code>{{ conversation.collected_slots }}</code></td></tr>
+    {% endif %}
+  </table>
+
+  {% if handoff %}
+    <h2>This conversation is with a person</h2>
+    <table>
+      <tr><th>reason</th><td>{{ handoff.reason }}</td></tr>
+      <tr><th>claimed by</th><td>{{ handoff.claimed_by or "nobody yet" }}</td></tr>
+    </table>
+    {% if not handoff.claimed_by %}
+      <form class="inline" method="post" action="/console/handoffs/{{ handoff.id }}/claim">
+        <p><button type="submit">Claim it</button></p>
+      </form>
+    {% else %}
+      <form method="post" action="/console/handoffs/{{ handoff.id }}/reply">
+        <p><textarea name="text" rows="3" placeholder="Reply to the consumer…" required></textarea></p>
+        <p>
+          <button type="submit">Send</button>
+        </p>
+      </form>
+      <form class="inline" method="post" action="/console/handoffs/{{ handoff.id }}/release">
+        <input type="hidden" name="notes" value="resolved from console">
+        <button class="ghost" type="submit">Hand back to Mawjood</button>
+      </form>
+    {% endif %}
+  {% endif %}
+
+  <h2>Transcript</h2>
+  <table>
+    {% for message in messages %}
+      <tr>
+        <td style="width:6rem"><code>{{ message.created_at.strftime("%H:%M:%S") }}</code></td>
+        <td style="width:6rem">
+          {% if message.direction == Direction.INBOUND %}consumer
+          {% elif message.phrasebank_key == "operator.reply" %}<strong>operator</strong>
+          {% else %}mawjood{% endif %}
+        </td>
+        <td{% if message.direction == Direction.INBOUND %} style="background:var(--consumer)"{% endif %}>
+          {{ message.body }}
+          {% if message.phrasebank_key %}<br><code style="color:var(--muted)">{{ message.phrasebank_key }}</code>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+
+  <h2>Why this happened</h2>
+  {# The reason the console exists: every platform tried, what came back, and why
+     the cascade moved on — on one screen instead of in a log search. #}
+  <table>
+    <tr><th>#</th><th>event</th><th>platform</th><th>outcome</th><th>ms</th><th>why it advanced</th></tr>
+    {% for row in trail %}
+      <tr>
+        <td><code>{{ row.seq }}</code></td>
+        <td><code>{{ row.event_type }}</code></td>
+        <td>{{ row.platform_slug or "" }}{% if row.attempt_number %} <span class="pill">#{{ row.attempt_number }}</span>{% endif %}</td>
+        <td>{{ row.outcome or "" }}</td>
+        <td>{{ row.latency_ms if row.latency_ms is not none else "" }}</td>
+        <td>{{ row.advance_reason or "" }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endblock %}
