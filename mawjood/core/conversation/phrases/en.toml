@@ -55,3 +55,50 @@ policy_version = "2026-07-01"
 # Deliberately not "I didn't understand". Asks forward instead of reporting a
 # shortcoming.
 "fallback.unclear" = "Give me a little more to go on — what are you after, and roughly where and when?"
+
+# --- Resuming after a gap ---------------------------------------------------
+"greeting.resumed" = "Good to hear from you again. Where were we — shall I pick up where we left off?"
+
+# --- Filling in the details ------------------------------------------------
+# One question at a time. A single question reads like a concierge; three at once
+# reads like a form.
+"ask.service" = "What are you after? A haircut, a treatment, a table — whatever it is, I'll find it."
+
+"ask.area" = "Whereabouts suits you?"
+
+"ask.when" = "When were you thinking?"
+
+# $options is filled with the emirates a place name matches, e.g.
+# "Al Nahda, Dubai or Al Nahda, Sharjah". Asking beats assuming: the wrong one is
+# a forty-minute drive.
+"clarify.area" = "Just so I get you to the right one — $options?"
+
+"ack.changed" = "Noted — let me redo that."
+
+# --- Presenting a slot -----------------------------------------------------
+# $service $venue $area $day $time $price
+"offer.slot" = "$service at $venue in $area — $day at $time, $price. Shall I lock it in?"
+
+# Used when the upstream match was less than certain. Hedged on purpose, and it
+# still requires an explicit yes.
+"offer.slot_hedged" = "Closest match is $service at $venue in $area — $day at $time, $price. Worth a look if that suits. Shall I lock it in?"
+
+"confirm.request" = "Just say the word and I'll book it."
+
+# $venue $area $day $time $code
+"booking.confirmed" = "Booked — $venue in $area, $day at $time. Your reference is $code. I'll send you a reminder beforehand."
+
+# --- After a booking -------------------------------------------------------
+# $venue $day $time
+"post.status" = "You're down for $venue, $day at $time. All set."
+
+"post.reschedule_ask" = "Of course — when would suit you better?"
+
+"post.cancelled" = "That's cancelled. Anything else I can line up for you?"
+
+# --- When a message carries nothing to act on ------------------------------
+"fallback.emoji" = "I'll take that as a good sign. What can I line up for you?"
+
+# v1 is English only. This is a statement of what Mawjood speaks, not an apology
+# and not a dead end — it asks forward.
+"language.english_only" = "English is what I've got for the moment — send it over in English and I'll take care of it."

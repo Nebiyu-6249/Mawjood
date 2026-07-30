@@ -47,8 +47,29 @@ class PhraseKey(StrEnum):
     CONSENT_ACKNOWLEDGED = "consent.acknowledged"
     CONSENT_WITHDRAWN = "consent.withdrawn"
 
+    GREETING_RESUMED = "greeting.resumed"
+
     ASK_WHAT_YOU_NEED = "ask.what_you_need"
+    ASK_SERVICE = "ask.service"
+    ASK_AREA = "ask.area"
+    ASK_WHEN = "ask.when"
+    CLARIFY_AREA = "clarify.area"
     ACK_RECEIVED = "ack.received"
+    CHANGE_ACKNOWLEDGED = "ack.changed"
+
+    # Presenting a concrete slot and taking an explicit confirmation. Nothing is
+    # booked without the consumer answering the second of these.
+    OFFER_SLOT = "offer.slot"
+    OFFER_SLOT_HEDGED = "offer.slot_hedged"
+    CONFIRM_REQUEST = "confirm.request"
+    BOOKING_CONFIRMED = "booking.confirmed"
+
+    POST_STATUS = "post.status"
+    POST_RESCHEDULE_ASK = "post.reschedule_ask"
+    POST_CANCELLED = "post.cancelled"
+
+    FALLBACK_EMOJI = "fallback.emoji"
+    LANGUAGE_ENGLISH_ONLY = "language.english_only"
 
     # The graceful pivot. Also the latency cover when the turn budget expires
     # mid-cascade — one mechanism, both jobs (CLAUDE.md section 5.2).

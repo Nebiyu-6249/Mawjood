@@ -69,6 +69,11 @@ class TurnResult:
     # True when the provider redelivered a message already processed. The turn
     # is a no-op and nothing is sent again.
     duplicate: bool = False
+    # Set when the turn budget expired mid-cascade. The holding pivot has already
+    # gone out; awaiting this finishes the cascade and delivers the follow-up.
+    # Same mechanism as the graceful pivot — one code path, both jobs.
+    deferred: Any = None
+    state: str | None = None
 
     @property
     def texts(self) -> tuple[str, ...]:
