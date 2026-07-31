@@ -83,11 +83,20 @@ class _BaseFake:
         honours_idempotency=True,
     )
 
-    def __init__(self) -> None:
+    def __init__(self, *, delay_s: float = 0.0) -> None:
         # Every create that succeeded, keyed by idempotency key. The
         # double-booking test sums this across all fakes and asserts it is one.
         self.created: dict[str, BookingRef] = {}
         self.calls: list[str] = []
+        # Real wall-clock delay before responding. Zero by default, because the
+        # test suite should not spend seconds sleeping. The load harness sets it
+        # so a latency measurement includes a realistic upstream instead of
+        # measuring only our own work — see tools/loadtest.py.
+        self._delay_s = delay_s
+
+    async def _stall(self) -> None:
+        if self._delay_s:
+            await asyncio.sleep(self._delay_s)
 
     def _record(self, method: str) -> None:
         self.calls.append(method)
@@ -96,10 +105,12 @@ class _BaseFake:
         self, ctx: CallContext, req: AvailabilityRequest
     ) -> Result[list[Slot]]:
         self._record("search_availability")
+        await self._stall()
         return Result(outcome=Outcome.OK, data=[_slot(ctx, req)], latency_ms=10)
 
     async def create_booking(self, ctx: CallContext, req: BookingRequest) -> Result[BookingRef]:
         self._record("create_booking")
+        await self._stall()
         existing = self.created.get(req.idempotency_key)
         if existing is not None:
             # Honouring the key: a repeat is the same booking, not a second one.
@@ -158,6 +169,7 @@ class HappyFake(_BaseFake):
         self, ctx: CallContext, req: AvailabilityRequest
     ) -> Result[list[Slot]]:
         self._record("search_availability")
+        await self._stall()
         slots = [
             _slot(ctx, req, offset_minutes=0, price=120.0, staff="Rania"),
             _slot(ctx, req, offset_minutes=30, price=120.0, staff="Mei"),
@@ -179,6 +191,7 @@ class EmptyFake(_BaseFake):
         self, ctx: CallContext, req: AvailabilityRequest
     ) -> Result[list[Slot]]:
         self._record("search_availability")
+        await self._stall()
         return Result(outcome=Outcome.NO_AVAILABILITY, latency_ms=90)
 
     async def create_booking(self, ctx: CallContext, req: BookingRequest) -> Result[BookingRef]:
@@ -196,15 +209,10 @@ class TimeoutFake(_BaseFake):
     slug = "fake_timeout"
 
     def __init__(self, *, delay_s: float = 0.0, lands_anyway: bool = False) -> None:
-        super().__init__()
-        self._delay_s = delay_s
+        super().__init__(delay_s=delay_s)
         # True models the nastiest real case: the request timed out on our side
         # but the booking *did* land upstream.
         self._lands_anyway = lands_anyway
-
-    async def _stall(self) -> None:
-        if self._delay_s:
-            await asyncio.sleep(self._delay_s)
 
     async def search_availability(
         self, ctx: CallContext, req: AvailabilityRequest

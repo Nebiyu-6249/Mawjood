@@ -512,6 +512,32 @@ async def _record_booking(
     from mawjood.core.notifications import schedule_for_booking
     from mawjood.db.models import Booking
 
+    idempotency_key = f"{conversation_id}:{payload['external_id']}"
+
+    # The adapter may legitimately hand back a booking we already have. Its
+    # idempotency key is derived from (conversation, category, slot, platform),
+    # so a consumer who confirms the same slot twice — a double tap, a provider
+    # redelivery, a retry after a dropped reply — gets the *same* BookingRef
+    # back. That is the double-booking defence working exactly as designed.
+    #
+    # Blindly inserting it then violates the unique constraint and takes the
+    # whole turn down, which turns a correctly-prevented double booking into a
+    # failed conversation. Found by tools/loadtest.py under a slow upstream.
+    existing = (
+        await session.execute(
+            select(Booking)
+            .where(Booking.tenant_id == tenant_id)
+            .where(Booking.idempotency_key == idempotency_key)
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        log.info(
+            "booking.already_recorded",
+            booking_id=str(existing.id),
+            idempotency_key=idempotency_key,
+        )
+        return
+
     booking = Booking(
         tenant_id=tenant_id,
         conversation_id=conversation_id,
@@ -519,7 +545,7 @@ async def _record_booking(
         category=Category(payload.get("category", Category.OTHER)),
         platform_slug=str(payload["platform_slug"]),
         external_booking_ref=str(payload["external_id"]),
-        idempotency_key=f"{conversation_id}:{payload['external_id']}",
+        idempotency_key=idempotency_key,
         status=BookingStatus.CONFIRMED,
         slot_start=datetime.fromisoformat(str(payload["slot_start"])),
         slot_end=datetime.fromisoformat(str(payload["slot_end"])),
