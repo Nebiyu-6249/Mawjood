@@ -1,0 +1,509 @@
+{
+  "packages": [
+    {
+      "name": "alembic",
+      "version": "1.18.5",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "annotated-doc",
+      "version": "0.0.5",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "annotated-types",
+      "version": "0.8.0",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "anyio",
+      "version": "4.14.2",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "ast_serialize",
+      "version": "0.6.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "asyncpg",
+      "version": "0.31.0",
+      "licence": "Apache-2.0",
+      "scope": "runtime"
+    },
+    {
+      "name": "boolean.py",
+      "version": "5.0",
+      "licence": "BSD-2-Clause",
+      "scope": "development"
+    },
+    {
+      "name": "CacheControl",
+      "version": "0.14.4",
+      "licence": "Apache-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "certifi",
+      "version": "2026.7.22",
+      "licence": "MPL-2.0",
+      "scope": "runtime"
+    },
+    {
+      "name": "cfgv",
+      "version": "3.5.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.4.9",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "click",
+      "version": "8.4.2",
+      "licence": "BSD-3-Clause",
+      "scope": "runtime"
+    },
+    {
+      "name": "cyclonedx-python-lib",
+      "version": "11.11.0",
+      "licence": "Apache-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "defusedxml",
+      "version": "0.7.1",
+      "licence": "PSF-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "distlib",
+      "version": "0.4.3",
+      "licence": "PSF-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "fastapi",
+      "version": "0.141.1",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "filelock",
+      "version": "3.32.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "greenlet",
+      "version": "3.5.4",
+      "licence": "MIT AND PSF-2.0",
+      "scope": "runtime"
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "httpcore",
+      "version": "1.0.9",
+      "licence": "BSD-3-Clause",
+      "scope": "runtime"
+    },
+    {
+      "name": "httptools",
+      "version": "0.8.0",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "httpx",
+      "version": "0.28.1",
+      "licence": "BSD-3-Clause",
+      "scope": "runtime"
+    },
+    {
+      "name": "identify",
+      "version": "2.6.19",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "idna",
+      "version": "3.18",
+      "licence": "BSD-3-Clause",
+      "scope": "runtime"
+    },
+    {
+      "name": "iniconfig",
+      "version": "2.3.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "Jinja2",
+      "version": "3.1.6",
+      "licence": "BSD-3-Clause",
+      "scope": "runtime"
+    },
+    {
+      "name": "librt",
+      "version": "0.13.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "license-expression",
+      "version": "30.4.4",
+      "licence": "Apache-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "Mako",
+      "version": "1.3.12",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "markdown-it-py",
+      "version": "4.2.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "MarkupSafe",
+      "version": "3.0.3",
+      "licence": "BSD-3-Clause",
+      "scope": "runtime"
+    },
+    {
+      "name": "mdurl",
+      "version": "0.1.2",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "msgpack",
+      "version": "1.2.1",
+      "licence": "Apache-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "mypy",
+      "version": "2.3.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "mypy_extensions",
+      "version": "1.1.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "nodeenv",
+      "version": "1.10.0",
+      "licence": "BSD-3-Clause",
+      "scope": "development"
+    },
+    {
+      "name": "packageurl-python",
+      "version": "0.17.6",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "packaging",
+      "version": "26.2",
+      "licence": "Apache-2.0 OR BSD-2-Clause",
+      "scope": "development"
+    },
+    {
+      "name": "pathspec",
+      "version": "1.1.1",
+      "licence": "MPL-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "pip",
+      "version": "26.2",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "pip-api",
+      "version": "0.0.34",
+      "licence": "Apache-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "pip_audit",
+      "version": "2.10.1",
+      "licence": "Apache-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "pip-requirements-parser",
+      "version": "32.0.1",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "platformdirs",
+      "version": "4.11.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "playwright",
+      "version": "1.61.0",
+      "licence": "Apache-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "pluggy",
+      "version": "1.6.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "pre_commit",
+      "version": "4.6.1",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "py-serializable",
+      "version": "2.1.0",
+      "licence": "Apache-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "pydantic",
+      "version": "2.13.4",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "pydantic_core",
+      "version": "2.46.4",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "pydantic-settings",
+      "version": "2.14.2",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "pyee",
+      "version": "13.0.1",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "Pygments",
+      "version": "2.20.0",
+      "licence": "BSD-2-Clause",
+      "scope": "development"
+    },
+    {
+      "name": "pyparsing",
+      "version": "3.3.2",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "pytest",
+      "version": "9.1.1",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "pytest-asyncio",
+      "version": "1.4.0",
+      "licence": "Apache-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "pytest-socket",
+      "version": "0.8.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "python-discovery",
+      "version": "1.5.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "python-dotenv",
+      "version": "1.2.2",
+      "licence": "BSD-3-Clause",
+      "scope": "runtime"
+    },
+    {
+      "name": "python-multipart",
+      "version": "0.0.32",
+      "licence": "Apache-2.0",
+      "scope": "runtime"
+    },
+    {
+      "name": "PyYAML",
+      "version": "6.0.3",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "requests",
+      "version": "2.34.2",
+      "licence": "Apache-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "respx",
+      "version": "0.23.1",
+      "licence": "BSD-3-Clause",
+      "scope": "development"
+    },
+    {
+      "name": "rich",
+      "version": "15.0.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "ruff",
+      "version": "0.16.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "segno",
+      "version": "1.6.6",
+      "licence": "BSD-3-Clause",
+      "scope": "runtime"
+    },
+    {
+      "name": "sentry-sdk",
+      "version": "2.66.1",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "sortedcontainers",
+      "version": "2.4.0",
+      "licence": "Apache-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "SQLAlchemy",
+      "version": "2.0.51",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "starlette",
+      "version": "1.3.1",
+      "licence": "BSD-3-Clause",
+      "scope": "runtime"
+    },
+    {
+      "name": "structlog",
+      "version": "26.1.0",
+      "licence": "MIT OR Apache-2.0",
+      "scope": "runtime"
+    },
+    {
+      "name": "tenacity",
+      "version": "9.1.4",
+      "licence": "Apache-2.0",
+      "scope": "runtime"
+    },
+    {
+      "name": "tomli",
+      "version": "2.4.1",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "tomli_w",
+      "version": "1.2.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "types-PyYAML",
+      "version": "6.0.12.20260724",
+      "licence": "Apache-2.0",
+      "scope": "development"
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "licence": "PSF-2.0",
+      "scope": "runtime"
+    },
+    {
+      "name": "typing-inspection",
+      "version": "0.4.2",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "urllib3",
+      "version": "2.7.0",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "uvicorn",
+      "version": "0.52.0",
+      "licence": "BSD-3-Clause",
+      "scope": "runtime"
+    },
+    {
+      "name": "uvloop",
+      "version": "0.22.1",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "virtualenv",
+      "version": "21.7.0",
+      "licence": "MIT",
+      "scope": "development"
+    },
+    {
+      "name": "watchfiles",
+      "version": "1.2.0",
+      "licence": "MIT",
+      "scope": "runtime"
+    },
+    {
+      "name": "websockets",
+      "version": "16.1.1",
+      "licence": "BSD-3-Clause",
+      "scope": "runtime"
+    }
+  ],
+  "resolved_but_not_installed_on_this_platform": [
+    "colorama"
+  ],
+  "totals": {
+    "runtime": 36,
+    "development": 47
+  }
+}

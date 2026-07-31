@@ -59,23 +59,43 @@ Install the git hooks once with `make hooks`.
 |---|---|
 | [`CLAUDE.md`](CLAUDE.md) | The invariant, the adapter contract, settled decisions, the working agreement. **Read this first.** |
 | [`PLAN.md`](PLAN.md) | Five phases, each with deliverables and a testable definition of done. |
-| `docs/RUNBOOK.md` | Operations, backup and the restore drill. |
-| `docs/DEPLOY.md` | Deployment and region selection. |
-| `docs/ACCEPTANCE.md` | Launch acceptance checklist. |
-| `docs/KEYS.md` | Every credential and declared data processor. |
-| `docs/INTEGRATION_NOTES.md` | Per-provider API facts, recorded from live docs, with confidence levels. |
-| [`docs/SCHEMA.md`](docs/SCHEMA.md) | The eleven tables, with a diagram and the reasoning behind the non-obvious choices. |
+
+### Operator pack
+
+| File | What's in it |
+|---|---|
+| [`docs/ADD_AN_AGGREGATOR.md`](docs/ADD_AN_AGGREGATOR.md) | Building one new adapter, end to end. **The most useful page here** — every gated integration lands after launch. |
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) | Clean machine to running, plus sizing. |
+| [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | On-call basics, incident playbooks, backup and the restore drill. |
+| [`docs/KEYS.md`](docs/KEYS.md) | Every credential — where it lives, who owns it, how to rotate it — and every declared processor. |
+| [`docs/LICENCES.md`](docs/LICENCES.md) | Open-source licence inventory, runtime and development split. |
+
+### Evidence and decisions
+
+| File | What's in it |
+|---|---|
+| [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) | One row per capability: how it was tested, the result, the evidence. Real latency numbers, including the one that missed. |
+| [`docs/PDPL.md`](docs/PDPL.md) | UAE PDPL compliance, written for a reviewer. Consent, erasure, retention, residency, known gaps. |
+| [`docs/SCHEMA.md`](docs/SCHEMA.md) | The tables, with a diagram and the reasoning behind the non-obvious choices. |
+| [`docs/INTEGRATION_NOTES.md`](docs/INTEGRATION_NOTES.md) | Per-provider API facts recorded from live docs, with confidence levels — and what is blocked. |
+| [`docs/RETROSPECTIVE.md`](docs/RETROSPECTIVE.md) | What I would do differently with more time. |
+| [`docs/evidence/`](docs/evidence/) | Raw output backing every number claimed above. |
 
 ## Status
 
-**Phase 2 (conversation, routing and the cascade) complete**, with one item
-blocked. The fallback cascade, the explicit conversation state machine, golden
-transcripts, source attribution and the adapter contract with nine test doubles
-all ship and are tested.
+**Phases 0–4 complete, except for anything needing a credential.** The cascade,
+the conversation state machine, notifications, the read-only ops console, the
+PDPL deletion and retention paths, backups with a performed restore drill,
+monitoring and the security pass all ship and are tested. 981 tests, ruff and
+mypy clean.
 
-**Zenoti is not implemented.** Its API documentation returns HTTP 403 on every
-route, so per `CLAUDE.md` section 10 the adapter is a documented stub rather than
-guessed endpoints. See `docs/INTEGRATION_NOTES.md`.
+**No live integration exists.** Four vendor documentation hosts — Meta,
+360dialog, Zenoti and Deliveroo — return HTTP 403 on every path, so per
+`CLAUDE.md` section 10 no endpoints were invented and those adapters are
+documented stubs. There is no WhatsApp account, no aggregator sandbox and no LLM
+key. Everything is proven against fakes.
+
+That is the honest position, and it is what `docs/ACCEPTANCE.md` says row by row.
 
 ```bash
 make seed && make simulate      # book a haircut in Marina, no credentials needed
