@@ -1,0 +1,32 @@
+2026-07-30 18:24:13 [info     ] erasure.completed              complete=True rows_deleted=20 subject_hash=04df85e9b5ed88e2d578a2d07466ab57278087afd5f602c0859922e6de4bb1c4
+{
+  "subject_hash": "04df85e9b5ed88e2d578a2d07466ab57278087afd5f602c0859922e6de4bb1c4",
+  "tenant_id": "88654e31-856b-4102-8106-33e33757664c",
+  "requested_at": "2026-07-30T18:24:13.867765+00:00",
+  "completed_at": "2026-07-30T18:24:13.908181+00:00",
+  "rows_deleted": {
+    "feedback": 0,
+    "scheduled_notifications": 4,
+    "handoff_queue": 0,
+    "attribution": 1,
+    "consents": 2,
+    "messages": 9,
+    "bookings": 1,
+    "conversations": 1,
+    "audit_log": 1,
+    "leads": 1
+  },
+  "rows_remaining": {
+    "feedback": 0,
+    "scheduled_notifications": 0,
+    "handoff_queue": 0,
+    "attribution": 0,
+    "consents": 0,
+    "messages": 0,
+    "bookings": 0,
+    "conversations": 0,
+    "audit_log": 0,
+    "leads": 0
+  },
+  "complete": true
+}

@@ -236,11 +236,25 @@ showing a completed booking, its full routing audit trail, and a live handoff.
 
 ---
 
-## Phase 4 — Hardening + launch readiness ⬜ not started
+## Phase 4 — Hardening + launch readiness ⚠️ complete except live credentials
 
 Compliance made real, performance proven, and live credentials wired when they land.
 
-**Deliverables**
+**What actually shipped**
+
+| Deliverable | Status |
+|---|---|
+| PDPL deletion path + retention job | ✅ `core/compliance/`, `tools/pdpl.py`. Reaches `audit_log`. Receipt with per-table before/after counts. |
+| Backups + restore drill | ✅ Drill performed 2026-07-30, written up in `RUNBOOK.md` with the volume caveat stated. Backups are local-disk only — no offsite copy (`RETROSPECTIVE.md` §6). |
+| Sentry, 90-day retention, least-privilege DB user | ✅ `observability/alerts.py`, `scripts/grants.sql`, verified live. |
+| Load and latency proof | ✅ Real numbers published in `ACCEPTANCE.md`. One path missed (p95 3.83 s at concurrency 15 on the shipped pool default) and is reported as a miss, with the cause — the connection pool, not the cascade. |
+| Chaos / fault injection | ✅ `tests/cascade/` and adapter conformance fault-inject the transport; the invariant holds. |
+| Security pass | ✅ Dependency audit, full-history secret scan, hardened signature verification, webhook rate limiting, PII redaction in logs, TLS. Evidence in `docs/evidence/`. |
+| Deployment target chosen | ⬜ **Deliberately still open.** No operator, so no cloud account. `DEPLOY.md` is written provider-agnostically and names what to fill in. |
+| Docs complete | ✅ `ACCEPTANCE.md`, `PDPL.md`, `DEPLOY.md`, `RUNBOOK.md`, `KEYS.md`, `LICENCES.md`, `ADD_AN_AGGREGATOR.md`, `RETROSPECTIVE.md`, plus `docs/evidence/`. |
+| Live credential wiring | ⬜ **Blocked.** No BSP account, no Zenoti sandbox, no OpenAI key, no approved templates. Four vendor doc hosts return HTTP 403 (re-verified 2026-07-30). Named in `KEYS.md` §5. |
+
+**Original deliverables**
 - **PDPL deletion path**: purge a consumer across every table *including logs*. Configurable
   retention plus the retention job.
 - **Backups**: daily DB backup, 30-day retention, and a **restore drill actually performed
@@ -261,18 +275,22 @@ Compliance made real, performance proven, and live credentials wired when they l
   WhatsApp exchange, approved templates attached to the scheduler.
 
 **Definition of done**
-- Deletion test proves **zero residue**: a scan across every table and the log store for the
-  identifier returns nothing.
-- Restore drill executed end to end, with the elapsed time recorded in `RUNBOOK.md`.
-- p50 < 3s verified under load.
-- CI enforces lint + typecheck + tests + secret scan + the blocklist scan, and the build
+- ✅ Deletion test proves **zero residue**: a scan across every table and the log store for
+  the identifier returns nothing.
+- ✅ Restore drill executed end to end, with the elapsed time recorded in `RUNBOOK.md` — and
+  the caveat that it was performed at tens of rows, so it establishes correctness, not an RTO.
+- ✅ p50 < 3s verified under load: 0.345 s on the happy path, 0.182 s on an exhausted
+  cascade. p95 published for four scenarios, including the one that missed and why.
+- ✅ CI enforces lint + typecheck + tests + secret scan + the blocklist scan, and the build
   fails if any of them fail.
-- Region config swaps cleanly with no US default anywhere.
-- `ACCEPTANCE.md` checklist fully green, executed against a deployed environment.
-- Live verification either done, or explicitly listed as blocked on a named credential.
+- ✅ Region config swaps cleanly with no US default anywhere.
+- ⚠️ `ACCEPTANCE.md` complete, with per-row evidence — but executed against the local stack
+  and the test suite, **not a deployed environment**, because there is no deployment.
+- ✅ Live verification explicitly listed as blocked on named credentials (`KEYS.md` §5).
 
-**Demo:** `uv run python tools/erase_consumer.py --phone +9715XXXXXXX` followed by the
-residue test proving nothing remains — the invariant's compliance twin.
+**Demo:** `uv run python tools/pdpl.py plan --wa-id 971501234567` then
+`uv run python tools/pdpl.py erase --wa-id 971501234567 --confirm --json` — the receipt
+shows every table at zero, `audit_log` included. The invariant's compliance twin.
 
 ---
 
@@ -282,8 +300,11 @@ Flagged rather than assumed, per the working agreement:
 
 - `uv` (package manager), `gitleaks` (pre-commit secret scan), and a thin `Makefile` — all
   Phase 0.
-- `tools/erase_consumer.py` — a tool file beyond the three named in the brief, needed to
-  make the PDPL deletion path operable. Phase 4.
+- `tools/pdpl.py` — a tool file beyond the three named in the brief, needed to make the PDPL
+  deletion path operable. Phase 4. **Shipped**, carrying both the erasure and the retention
+  sweep rather than two tools that would drift. Phase 3 and 4 added three more on the same
+  reasoning: `tools/handoff.py` (the reply/release capability the read-only console cannot
+  hold), `tools/loadtest.py`, and `tools/licences.py`.
 - A test-time socket blocker (e.g. `pytest-socket`) to enforce "no real network calls,
   ever" mechanically rather than by convention. Phase 0.
 - `freezegun` or equivalent for the scheduler's frozen-clock tests. Phase 3.

@@ -1,0 +1,22 @@
+2026-07-30 18:24:30 [info     ] retention.swept                dry_run=False kept_for_future_bookings=1 rows=19
+{
+  "ran_at": "2026-07-30T18:24:30.373821+00:00",
+  "dry_run": false,
+  "audit_retention_days": 90,
+  "consumer_retention_days": 365,
+  "audit_cutoff": "2026-05-01T18:24:30.373821+00:00",
+  "consumer_cutoff": "2025-07-30T18:24:30.373821+00:00",
+  "rows_deleted": {
+    "audit_log": 1,
+    "feedback": 0,
+    "consents": 2,
+    "scheduled_notifications": 4,
+    "handoff_queue": 0,
+    "attribution": 0,
+    "messages": 9,
+    "bookings": 1,
+    "conversations": 1,
+    "leads": 1
+  },
+  "consumers_kept_for_future_bookings": 1
+}
