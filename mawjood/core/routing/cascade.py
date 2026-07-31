@@ -24,6 +24,7 @@ Three things this file exists to get right:
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from collections.abc import Mapping, Sequence
@@ -212,16 +213,51 @@ class Cascade:
             correlation_id=self.correlation_id,
         )
 
-    async def _call(self, description: str, coro: Any) -> Result[Any]:
+    async def _call(self, description: str, coro: Any, *, bound: bool = True) -> Result[Any]:
         """Invoke an adapter, converting a contract breach into an outcome.
 
         Adapters are required not to raise. One that does anyway must not take the
         conversation down with it — that is precisely how a consumer ends up
         seeing a failure.
+
+        **The call is also bounded by the remaining turn budget.** Checking the
+        deadline only *between* candidates is not enough: one slow upstream can
+        then overshoot by a whole call, because nothing stops a call that has
+        already started. Measured with a 900ms upstream and a four-deep list,
+        that put p95 turn latency at 3.8s against a 2.5s budget
+        (tools/loadtest.py). Bounding each call caps the overshoot at whatever
+        is left rather than at however long the upstream feels like taking.
+
+        A call cut off this way is a ``TIMEOUT``, which is the truth — we do not
+        know what the upstream would have said. The router already knows what
+        that means, including the rule that a create timeout reconciles rather
+        than advances (CLAUDE.md 5.1), so this needs no special case.
+
+        ``bound=False`` is for reconciliation reads, which must be allowed to
+        finish: cutting one short converts a knowable answer into "inconclusive"
+        and sends a consumer to a human for no reason.
         """
         started = time.perf_counter()
         try:
-            result: Result[Any] = await coro
+            if bound:
+                remaining_s = max(0.0, self.deadline.remaining_ms / 1000.0)
+                if remaining_s <= 0:
+                    return Result(
+                        outcome=Outcome.TIMEOUT,
+                        raw_error="turn budget exhausted before the call started",
+                        latency_ms=0,
+                    )
+                result: Result[Any] = await asyncio.wait_for(coro, timeout=remaining_s)
+            else:
+                result = await coro
+        except TimeoutError:
+            latency = int((time.perf_counter() - started) * 1000)
+            log.info("aggregator.cut_off_by_budget", call=description, latency_ms=latency)
+            return Result(
+                outcome=Outcome.TIMEOUT,
+                raw_error="cut off by the turn budget before the upstream answered",
+                latency_ms=latency,
+            )
         except Exception as exc:  # adapter broke its contract
             latency = int((time.perf_counter() - started) * 1000)
             log.exception("aggregator.raised_into_router", call=description)
@@ -465,9 +501,13 @@ class Cascade:
             idempotency_key=idempotency_key,
         )
 
+        # Unbounded on purpose. This read decides whether a consumer has a
+        # booking; cutting it short to save a second converts a knowable answer
+        # into "inconclusive" and sends them to a human for nothing.
         result = await self._call(
             f"find_by_idempotency_key/{candidate.slug}",
             candidate.adapter.find_by_idempotency_key(ctx, idempotency_key),
+            bound=False,
         )
 
         if result.outcome is Outcome.OK and result.data is not None:
