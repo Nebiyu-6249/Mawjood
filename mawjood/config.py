@@ -149,6 +149,18 @@ class Settings(BaseSettings):
     bsp_api_base: str | None = None
     bsp_api_key: SecretStr | None = None
 
+    # --- Webhook protection ---------------------------------------------------
+    # Per source address, applied before the signature check so forged traffic
+    # cannot make us do the HMAC work for free. Generous: a legitimate BSP
+    # delivers from a handful of addresses and must never be throttled.
+    webhook_rate_per_minute: int = Field(default=600, gt=0)
+    # Per consumer, applied after parsing. Tighter, because no real person sends
+    # thirty messages a minute.
+    consumer_rate_per_minute: int = Field(default=30, gt=0)
+    # A WhatsApp text payload is a few kilobytes. 256 KB is generous headroom and
+    # still bounds what one request can make us hold in memory.
+    webhook_max_body_bytes: int = Field(default=256 * 1024, gt=0)
+
     # --- Startup behaviour --------------------------------------------------
     # docker-compose sets this so one command gives a working stack. Deployments
     # run migrations as a deliberate step, so it stays off by default.

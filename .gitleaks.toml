@@ -21,4 +21,23 @@ regexes = [
   # unit tests never open a socket, and the integration suite is given a real
   # DSN through MAWJOOD_TEST_DATABASE_URL.
   '''postgresql\+asyncpg://mawjood:mawjood@127\.0\.0\.1:\d+/\w+''',
+
+  # --- Our own vocabulary, which the generic-api-key rule misreads ---------
+  #
+  # These entries match the *value*, not the surrounding line: gitleaks tests an
+  # allowlist regex against the secret it extracted. Scoping to the value shape
+  # rather than to a directory is deliberate — a blanket "ignore tests/" would
+  # make the scan useless exactly where fixture credentials live, and a real key
+  # committed to a test file is still a real key.
+  #
+  # A phrasebank key. `phrasebank_key="notify.reminder_24h"` trips the
+  # generic-api-key rule because any `*_key = "..."` looks like a credential
+  # assignment. These are lookups into
+  # mawjood/core/conversation/phrases/*.toml — copy that lives in the repository
+  # in plain text on purpose, and is scanned by the no-empty-shelves blocklist.
+  '''^(notify|greeting|consent|ask|clarify|ack|offer|confirm|booking|post|fallback|pivot|handoff|language|operator)\.[a-z0-9_]+$''',
+  # An idempotency key: derived from a conversation id and a slot. A
+  # deduplication token, not an authenticator, and stored in plain text by
+  # design (CLAUDE.md section 4).
+  '''^idem-[a-z0-9-]*$''',
 ]

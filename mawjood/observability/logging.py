@@ -40,12 +40,38 @@ _SECRET_KEY_PATTERN: Final = re.compile(
 )
 _PII_KEY_PATTERN: Final = re.compile(r"(phone|msisdn|whatsapp[-_]?id|wa[-_]?id|email)")
 
+# Keys whose values are consumer *content* rather than an identifier. Masking the
+# last three characters is the wrong treatment for a sentence, so these are
+# dropped entirely: the transcript lives in `messages` and the audit trail, which
+# are inside the retention and erasure boundary. Logs are not — they ship to
+# whatever aggregator the deployment uses — so consumer prose must not be there.
+_CONTENT_KEY_PATTERN: Final = re.compile(
+    r"^(body|text|message|consumer_text|display_name|profile_name|notes|comment"
+    r"|raw|raw_payload|reply|prompt|completion)$"
+)
+
+# A phone number can arrive inside an otherwise-innocuous value — an error string,
+# a summary, an upstream message. Key-based redaction alone would miss it, so
+# every string value is swept for E.164-shaped runs as well.
+#
+# Deliberately conservative: 9-15 digits with an optional +, which is E.164's
+# range. Shorter runs are left alone because timestamps, ports and ids are not
+# phone numbers and mangling them would make logs harder to read for no gain.
+_E164_PATTERN: Final = re.compile(r"\+?\d{9,15}")
+
+_MAX_VALUE_LENGTH: Final = 2000
+
 
 def _mask_pii(value: str) -> str:
     """Keep the last three characters so a human can still correlate a thread."""
     if len(value) <= 3:
         return "*" * len(value)
     return "*" * (len(value) - 3) + value[-3:]
+
+
+def _mask_numbers_in_text(value: str) -> str:
+    """Mask anything E.164-shaped wherever it appears in a string."""
+    return _E164_PATTERN.sub(lambda m: _mask_pii(m.group(0)), value)
 
 
 def _scrub(value: Any, depth: int = 0) -> Any:
@@ -63,8 +89,16 @@ def _scrub_pair(key: str, value: Any, depth: int) -> Any:
     lowered = key.lower()
     if _SECRET_KEY_PATTERN.search(lowered):
         return REDACTED
+    if _CONTENT_KEY_PATTERN.search(lowered):
+        # Consumer prose. Dropped, not masked — see the note on the pattern.
+        return REDACTED
     if _PII_KEY_PATTERN.search(lowered) and isinstance(value, str):
         return _mask_pii(value)
+    if isinstance(value, str):
+        # Bound the length as well. An unbounded value in a log line is how a
+        # whole request body ends up in an aggregator by accident.
+        masked = _mask_numbers_in_text(value)
+        return masked if len(masked) <= _MAX_VALUE_LENGTH else masked[:_MAX_VALUE_LENGTH] + "…"
     return _scrub(value, depth + 1)
 
 

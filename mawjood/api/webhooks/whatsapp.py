@@ -27,6 +27,7 @@ from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import select
 
+from mawjood.api.ratelimit import Limit, RateLimiter, client_address
 from mawjood.config import Settings
 from mawjood.core.conversation.pipeline import UnknownTenant, handle_inbound
 from mawjood.core.enums import MessageStatus
@@ -70,13 +71,49 @@ async def receive(request: Request) -> Response:
     """Receive a batch of inbound messages."""
     settings: Settings = request.app.state.settings
     bsp = request.app.state.bsp
+    limiter: RateLimiter = request.app.state.rate_limiter
     correlation_id = request.headers.get("x-request-id") or uuid.uuid4().hex
+    headers = dict(request.headers)
+
+    # --- Rate limit, before anything expensive ------------------------------
+    # Applied ahead of the signature check because rejecting a forged body still
+    # costs an HMAC, and the point is to bound the cost of traffic that will be
+    # rejected anyway.
+    source = client_address(headers, request.client.host if request.client else None)
+    if not limiter.allow(
+        "webhook.source", source, Limit(per_minute=settings.webhook_rate_per_minute)
+    ):
+        log.warning("webhook.rate_limited", scope="source")
+        return JSONResponse(
+            {"status": "rate_limited"},
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": "60"},
+        )
+
+    # --- Body size ----------------------------------------------------------
+    # Checked from the header first so an oversized body is refused before it is
+    # read into memory. Content-Length is a claim, not a fact, so the actual
+    # bytes are checked again below.
+    declared = headers.get("content-length")
+    max_bytes = settings.webhook_max_body_bytes
+    if declared and declared.isdigit() and int(declared) > max_bytes:
+        log.warning("webhook.body_too_large", declared=int(declared), limit=max_bytes)
+        return JSONResponse(
+            {"status": "rejected", "reason": "payload too large"},
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        )
 
     # The signature covers the bytes as sent. Parsing first and re-serialising
     # would change whitespace and key order and invalidate every signature.
     raw_body = await request.body()
+    if len(raw_body) > max_bytes:
+        log.warning("webhook.body_too_large", actual=len(raw_body), limit=max_bytes)
+        return JSONResponse(
+            {"status": "rejected", "reason": "payload too large"},
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        )
 
-    signature = _check_signature(settings, bsp, raw_body, dict(request.headers))
+    signature = _check_signature(settings, bsp, raw_body, headers)
     if not signature.ok:
         log.warning(
             "webhook.signature_rejected",
@@ -110,6 +147,18 @@ async def receive(request: Request) -> Response:
     results: list[dict[str, Any]] = []
 
     for inbound in inbound_messages:
+        # Per-consumer limit. One stuck client resending, or a script, must not
+        # be able to drive unbounded database work. A throttled message is
+        # dropped rather than answered: the consumer sees nothing, which is the
+        # invariant, and the provider will redeliver.
+        if not limiter.allow(
+            "webhook.consumer",
+            inbound.wa_id,
+            Limit(per_minute=settings.consumer_rate_per_minute),
+        ):
+            log.warning("webhook.rate_limited", scope="consumer")
+            continue
+
         async with session_factory() as session:
             try:
                 # settings must be passed. Without it the pipeline falls back to
