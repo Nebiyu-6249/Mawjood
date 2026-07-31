@@ -21,6 +21,7 @@ from fastapi import FastAPI
 
 from mawjood.api.console.routes import router as console_router
 from mawjood.api.health import router as health_router
+from mawjood.api.ratelimit import RateLimiter
 from mawjood.api.webhooks.whatsapp import router as whatsapp_router
 from mawjood.config import Settings, get_settings
 from mawjood.core.conversation.phrasebank import get_phrasebank
@@ -84,6 +85,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.engine = engine
     app.state.session_factory = session_factory
     app.state.bsp = build_bsp(settings)
+    # Per-process token buckets. A multi-instance deployment multiplies the
+    # effective rate; see the note in api/ratelimit.py and DEPLOY.md.
+    app.state.rate_limiter = RateLimiter()
 
     # Loaded eagerly so a malformed or incomplete locale file fails at startup
     # rather than the first time a consumer needs a reply.
